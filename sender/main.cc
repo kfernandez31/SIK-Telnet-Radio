@@ -54,9 +54,8 @@ int main(int argc, char** argv) {
     VERIFY(connect(socket_fd, (struct sockaddr *)&send_address, (socklen_t)sizeof(send_address)));
 
     uint8_t buffer[bsize];
-    ssize_t nread;
     for (;;) {
-        nread = read(STDIN_FILENO, (void*)&buffer, bsize);
+        ssize_t nread = read(STDIN_FILENO, (void*)&buffer, bsize);
         VERIFY(nread);
 
         // End of input or incomplete packet

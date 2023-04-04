@@ -2,9 +2,12 @@
 #include "../common/err.h"
 
 #include <boost/program_options.hpp>
-
+#include <arpa/inet.h>
 #include <iostream>
 #include <string>
+#include <thread>
+
+const uint64_t NO_SESSION = 0;
 
 namespace bpo = boost::program_options;
 
@@ -41,7 +44,59 @@ int main(int argc, char** argv) {
     uint16_t data_port = vm["port"].as<uint16_t>();
     size_t psize = vm["psize"].as<size_t>();
     size_t bsize = vm["bsize"].as<size_t>();
-    std::string nazwa = vm["nazwa"].as<std::string>();
 
+    fprintf(stderr, "Listening on port %u...\n", data_port);
+
+    const size_t pkt_size = 2 * sizeof(uint64_t) + psize;
+
+    uint64_t byte0, cur_session = NO_SESSION;
+    size_t highest_byte_received = 0, dump_pos = 0;
+    int socket_fd = bind_socket(data_port);
+    uint8_t buffer[bsize];
+    bool received[bsize / psize];
+    for (int i = 0; i < bsize / psize; i++) {
+        received[i] = false;
+    }
+
+    for (;;) {
+        struct sockaddr_in client_address;
+        audio_packet pkt;
+        read_packet(socket_fd, &client_address, &pkt, pkt_size);
+
+        // ignore older sessions
+        if (pkt.session_id < cur_session) {
+            continue;
+        }
+
+        // favor newer sessions
+        if (pkt.session_id > cur_session) {
+            // make this the current session
+            cur_session = pkt.session_id;
+            dump_pos = byte0 = pkt.first_byte_num;
+            highest_byte_received = byte0;
+
+            for (int i = 0; i < bsize / psize; i++) {
+                received[i] = false;
+            }
+        } else {
+            size_t first_packet = (size_t)byte0 / psize;
+            size_t this_packet = (size_t)pkt.first_byte_num / psize;
+            for (size_t i = first_packet; i < this_packet; i++) {
+                if (!received[i]) {
+                    fprintf(stderr, "MISSING: BEFORE %zu EXPECTED %zu\n", this_packet, i);
+                }
+            }
+        }
+
+        memcpy(buffer + pkt.first_byte_num, pkt.audio_data, psize);
+        received[pkt.first_byte_num / psize] = true;
+
+        if (highest_byte_received >= write_threshold(byte0, bsize)) {
+            dump_buffer(buffer + dump_pos, highest_byte_received - dump_pos + 1);
+            dump_pos = highest_byte_received;
+        }
+    }
+
+    CHECK_ERRNO(close(socket_fd));
     return 0;
 }
