@@ -1,13 +1,13 @@
 #pragma once
 
+#include <cstdio>
+#include <cstdlib>
+#include <cerrno>
+#include <cstdbool>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <errno.h>
-#include <stdbool.h>
 
 // Evaluate `x`: if non-zero, describe it as a standard error code and exit with an error.
 #define CHECK(x)                                                          \
@@ -66,6 +66,9 @@ extern "C" {
 // Print an error message and exit with an error.
 void fatal(const char *fmt, ...);
 
+// Logs a message to stderr
+void eprintln(const char* fmt, ...);
+
 #ifdef __cplusplus
 }
-#endif
+#endif /* __cplusplus */ 

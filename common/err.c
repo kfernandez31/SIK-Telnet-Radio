@@ -1,5 +1,5 @@
 #include "err.h"
-#include <stdarg.h>
+#include <cstdarg>
 
 void fatal(const char *fmt, ...) {
     va_list fmt_args;
@@ -10,4 +10,12 @@ void fatal(const char *fmt, ...) {
     va_end(fmt_args);
     fprintf(stderr, "\n");
     exit(EXIT_FAILURE);
+}
+
+void eprintln(const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    vfprintf(stderr, fmt, args);
+    fprintf(stderr, "\n");
+    va_end(args);
 }
