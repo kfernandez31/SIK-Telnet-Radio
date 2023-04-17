@@ -1,5 +1,7 @@
 #pragma once
 
+#include <arpa/inet.h>
+
 #ifndef htonll
     #if __BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN__
         #define htonll(x) (((uint64_t)htonl(x) << 32) | htonl(x >> 32))

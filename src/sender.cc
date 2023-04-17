@@ -1,27 +1,22 @@
-#include "../common/err.h"
-#include "../common/buffer.h"
-#include "../common/endian.h"
-#include "../common/audio_packet.h"
+#include "utils/err.hh"
+#include "utils/buffer.hh"
+#include "utils/endian.hh"
+#include "utils/audio_packet.hh"
+#include "utils/net.hh"
 
-#include <netdb.h>
-#include <arpa/inet.h>
+#include <poll.h>
 #include <unistd.h>
 #include <ctime>
-#include <cstring>
-#include <cstdio>
 #include <csignal>
 
 #include <iostream>
 #include <string>
-#ifdef BOOST
+
 #include <boost/program_options.hpp>
-#endif
-
-#ifdef BOOST
 namespace bpo = boost::program_options;
-#endif
 
-int socket_fd;
+int exit_code;
+bool running = true;
 
 struct sender_params {
     uint64_t    session_id;
@@ -32,46 +27,24 @@ struct sender_params {
 };
 
 static ssize_t readn_blocking(uint8_t* buf, const size_t n) {
-    uint8_t* bpos = buf;
-    size_t nleft  = n;
+    uint8_t* bpos  = buf;
+    size_t   nleft = n;
 
     while (nleft) {
         ssize_t res = read(STDIN_FILENO, bpos, nleft);
-        if (res == -1) {
-            // TODO: is this needed?
-            // if (errno == EINTR) {
-            //     continue;
-            // }
-            return -1;
-        } else if (res == 0) {
+        if (res == -1 && errno == EINTR)
             break;
-        }
+        VERIFY(res);
+        if (res == 0)
+            break;
         nleft -= res;
         bpos  += res;
     }
     return n - nleft;
 }
 
-static struct sockaddr_in get_send_address(const char* host, const uint16_t port) {
-    struct addrinfo hints = {};
-    hints.ai_family = AF_INET; // IPv4
-    hints.ai_socktype = SOCK_DGRAM;
-    hints.ai_protocol = IPPROTO_UDP;
-
-    struct addrinfo *address_result;
-    CHECK(getaddrinfo(host, NULL, &hints, &address_result));
-
-    struct sockaddr_in send_address;
-    send_address.sin_family = AF_INET; // IPv4
-    send_address.sin_addr.s_addr = ((struct sockaddr_in *) (address_result->ai_addr))->sin_addr.s_addr; // IP address
-    send_address.sin_port = htons(port);
-
-    freeaddrinfo(address_result);
-    return send_address;
-}
-
 static void send_packet(const int socket_fd, uint64_t session_id, uint64_t first_byte_num, const uint8_t* audio_data, const size_t psize) {
-    session_id = htonll(session_id);
+    session_id     = htonll(session_id);
     first_byte_num = htonll(first_byte_num);
 
     uint8_t buffer[2 * sizeof(uint64_t) + psize];
@@ -84,8 +57,7 @@ static void send_packet(const int socket_fd, uint64_t session_id, uint64_t first
     ENSURE(sent_length == (ssize_t)sizeof(buffer));
 }
 
-struct sender_params get_params(int argc, char* argv[]) {
-#ifdef BOOST
+static sender_params get_params(int argc, char* argv[]) {
     bpo::options_description desc("Allowed options");
     desc.add_options()
         ("help,h", "produce help message")
@@ -125,56 +97,47 @@ struct sender_params get_params(int argc, char* argv[]) {
         .data_port  = vm["port"].as<uint16_t>(),
         .psize      = vm["psize"].as<size_t>(),
     };
-#endif
-#ifndef BOOST
-    return sender_params {
-        .session_id = (uint64_t)time(NULL),
-        .nazwa      = std::string("Nienazwany nadajnik"),
-        .dest_addr  = std::string("localhost"),
-        .data_port  = 29629,
-        .psize      = 512,
-    };
-#endif
 }
 
-static void sigint_handler(int signum) {
-    eprintln("Received SIGINT, receiver shutting down...");
-    CHECK_ERRNO(close(socket_fd));
-    exit(signum);
+static void signal_handler(int signum) {
+    eprintln("Received %s. Shutting down...", strsignal(signum));
+    running = false;
+    exit_code = signum;
 }
 
-static void run(const sender_params* params) {
-    struct sockaddr_in send_address = get_send_address(params->dest_addr.c_str(), params->data_port);
+static int run(const sender_params* params) {
+    uint8_t audio_data[params->psize];
+    struct sockaddr_in dst_addr = get_addr(params->dest_addr.c_str(), params->data_port);
     int socket_fd = socket(PF_INET, SOCK_DGRAM, 0);
     VERIFY(socket_fd);
-    signal(SIGINT, sigint_handler);
-    VERIFY(connect(socket_fd, (struct sockaddr *)&send_address, sizeof(send_address)));
+    VERIFY(connect(socket_fd, (struct sockaddr *)&dst_addr, sizeof(dst_addr)));
+    
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_handler = signal_handler;
+    sa.sa_flags = 0;
+    VERIFY(sigaction(SIGINT, &sa, NULL));
 
     size_t nsent = 0;
-    uint8_t audio_data[params->psize];
-
-    for (size_t first_byte_num = 0; ; first_byte_num += params->psize) {
+    while (running) {
         ssize_t nread = readn_blocking(audio_data, params->psize);
-        fprintf(stderr, "Read %zu bytes!\n", nread);
+        eprintln("Read %zu bytes!", nread);
 
         VERIFY(nread);
-        if (nread < (ssize_t)params->psize) {
-            // End of input or incomplete packet
-            break;
-        }
+        if (nread < (ssize_t)params->psize)
+            break; // End of input or incomplete packet
 
-        fprintf(stderr, "Sending packet %zu...\n", first_byte_num / params->psize);
-        send_packet(socket_fd, params->session_id, first_byte_num, audio_data, params->psize);
+        eprintln("Sending packet %zu...\n", nsent);
+        send_packet(socket_fd, params->session_id, nsent, audio_data, params->psize);
         nsent += params->psize;
     }
 
-    fprintf(stderr, "All done, sent %zu bytes!\n", nsent);
+    eprintln("All done, sent %zu bytes!\n", nsent);
     CHECK_ERRNO(close(socket_fd));
+    return exit_code;
 }
 
 int main(int argc, char* argv[]) {
     sender_params params = get_params(argc, argv);
-    run(&params);
-   
-    return 0;
+    return run(&params);
 }

@@ -1,48 +1,31 @@
-# Set compiler and flags
 CC = g++
-CFLAGS = -Wall -O2 -std=c++20
+CFLAGS = -Wall -Wextra -O2 -std=c++20
+# LDFLAGS = -lboost_program_options
+# INCLUDES = -I/usr/include/boost
 
-# if on Mac:
-# LDFLAGS = -pthread
+# List of source files
+COMMON_SOURCES := $(wildcard src/utils/*.cc)
+SENDER_SOURCES := src/sender.cc $(COMMON_SOURCES)
+RECEIVER_SOURCES := src/receiver.cc $(COMMON_SOURCES)
 
-# if on Students:
-LDFLAGS = -lboost_program_options
-INCLUDES = -I/usr/include/boost
-CFLAGS += DBOOST
-
-# Set source directories
-COMMON_DIR = common
-RECEIVER_DIR = receiver
-SENDER_DIR = sender
-
-# Object files
-COMMON_OBJS = $(COMMON_DIR)/buffer.o $(COMMON_DIR)/err.o
-RECEIVER_OBJS = $(RECEIVER_DIR)/receiver.o $(COMMON_OBJS)
-SENDER_OBJS = $(SENDER_DIR)/sender.o $(COMMON_OBJS)
-
-# Binary files
-RECEIVER_BIN = sikradio-receiver
-SENDER_BIN = sikradio-sender
+# List of object files
+SENDER_OBJECTS := $(patsubst %.cc, %.o, $(SENDER_SOURCES))
+RECEIVER_OBJECTS := $(patsubst %.cc, %.o, $(RECEIVER_SOURCES))
 
 # Targets
-.PHONY: all clean
+all: sikradio-sender sikradio-receiver
 
-all: $(RECEIVER_BIN) $(SENDER_BIN)
+sikradio-sender: $(SENDER_OBJECTS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(SENDER_OBJECTS) -o sikradio-sender $(LDFLAGS)
 
-$(RECEIVER_BIN): $(RECEIVER_OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+sikradio-receiver: $(RECEIVER_OBJECTS)
+	$(CC) $(CFLAGS) $(INCLUDES) $(RECEIVER_OBJECTS) -o sikradio-receiver $(LDFLAGS)
 
-$(SENDER_BIN): $(SENDER_OBJS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LDFLAGS)
+# Object files
+%.o: %.cc
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
-$(COMMON_DIR)/%.o: $(COMMON_DIR)/%.c
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-$(RECEIVER_DIR)/%.o: $(RECEIVER_DIR)/%.cc
-	$(CC) $(CFLAGS) -c -o $@ $<
-
-$(SENDER_DIR)/%.o: $(SENDER_DIR)/%.cc
-	$(CC) $(CFLAGS) -c -o $@ $<
-
+# Clean
 clean:
-	rm -f $(RECEIVER_BIN) $(SENDER_BIN) $(COMMON_DIR)/*.o $(RECEIVER_DIR)/*.o $(SENDER_DIR)/*.o
+	rm -f $(SENDER_OBJECTS) $(RECEIVER_OBJECTS) sikradio-sender sikradio-receiver
+

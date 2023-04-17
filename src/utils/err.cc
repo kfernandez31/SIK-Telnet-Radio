@@ -1,5 +1,8 @@
-#include "err.h"
+#include "./err.h"
+
 #include <cstdarg>
+#include <cstdio>
+#include <cstdlib>
 
 void fatal(const char *fmt, ...) {
     va_list fmt_args;
