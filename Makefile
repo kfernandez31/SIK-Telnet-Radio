@@ -1,9 +1,14 @@
 # Set compiler and flags
 CC = g++
 CFLAGS = -Wall -O2 -std=c++20
-# LDFLAGS := -pthread
-LDFLAGS := -lboost_program_options
+
+# if on Mac:
+# LDFLAGS = -pthread
+
+# if on Students:
+LDFLAGS = -lboost_program_options
 INCLUDES = -I/usr/include/boost
+CFLAGS += DBOOST
 
 # Set source directories
 COMMON_DIR = common

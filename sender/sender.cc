@@ -11,11 +11,15 @@
 #include <cstdio>
 #include <csignal>
 
-#include <boost/program_options.hpp>
 #include <iostream>
 #include <string>
+#ifdef BOOST
+#include <boost/program_options.hpp>
+#endif
 
+#ifdef BOOST
 namespace bpo = boost::program_options;
+#endif
 
 int socket_fd;
 
@@ -81,6 +85,7 @@ static void send_packet(const int socket_fd, uint64_t session_id, uint64_t first
 }
 
 struct sender_params get_params(int argc, char* argv[]) {
+#ifdef BOOST
     bpo::options_description desc("Allowed options");
     desc.add_options()
         ("help,h", "produce help message")
@@ -120,14 +125,16 @@ struct sender_params get_params(int argc, char* argv[]) {
         .data_port  = vm["port"].as<uint16_t>(),
         .psize      = vm["psize"].as<size_t>(),
     };
-
-    // return sender_params {
-    //     .session_id = (uint64_t)time(NULL),
-    //     .nazwa      = std::string("Nienazwany nadajnik"),
-    //     .dest_addr  = std::string("localhost"),
-    //     .data_port  = 29629,
-    //     .psize      = 512,
-    // };
+#endif
+#ifndef BOOST
+    return sender_params {
+        .session_id = (uint64_t)time(NULL),
+        .nazwa      = std::string("Nienazwany nadajnik"),
+        .dest_addr  = std::string("localhost"),
+        .data_port  = 29629,
+        .psize      = 512,
+    };
+#endif
 }
 
 static void sigint_handler(int signum) {

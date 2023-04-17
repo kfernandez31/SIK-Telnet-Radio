@@ -9,16 +9,22 @@
 #include <cstdarg>
 #include <csignal>
 
-#include <boost/program_options.hpp>
 #include <iostream>
 #include <string>
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <set>
+
+#ifdef BOOST
+#include <boost/program_options.hpp>
+#endif
 
 #define NO_SESSION 0
 
+#ifdef BOOST
 namespace bpo = boost::program_options;
+#endif
 
 int socket_fd;
 
@@ -30,6 +36,7 @@ struct receiver_params {
 };
 
 receiver_params get_params(int argc, char* argv[]) {
+#ifdef BOOST
     bpo::options_description desc("Allowed options");
     desc.add_options()
         ("help,h",  "produce help message")
@@ -63,12 +70,14 @@ receiver_params get_params(int argc, char* argv[]) {
         .psize     = vm["psize"].as<size_t>(),
         .bsize     = vm["bsize"].as<size_t>(),
     };
-
-    // return receiver_params {
-    //     .data_port = 29629,
-    //     .psize     = 512,
-    //     .bsize     = 65536,
-    // };
+#endif
+#ifndef BOOST
+    return receiver_params {
+        .data_port = 29629,
+        .psize     = 512,
+        .bsize     = 65536,
+    };
+#endif
 }
 
 static int bind_socket(const uint16_t port) {
@@ -108,7 +117,7 @@ static void run(const receiver_params* params) {
     uint8_t buffer[params->bsize];
     uint64_t byte0 = 0, cur_session = NO_SESSION;
     size_t nread = 0;
-    bool reset = true;
+    std::set<std::pair<size_t, size_t>> pending;
 
     socket_fd = bind_socket(params->data_port);
     eprintln("Listening on port %u...", params->data_port);
@@ -128,11 +137,10 @@ static void run(const receiver_params* params) {
             continue;
         }
 
-        if (reset || (pkt.session_id > cur_session)) {
+        if (pkt.session_id > cur_session) {
             cur_session = pkt.session_id;
             byte0 = pkt.first_byte_num;
             nread = 0;
-            reset = false;
         }
         
         size_t fst_pkt = byte0 / params->psize;
@@ -140,13 +148,12 @@ static void run(const receiver_params* params) {
         size_t cur_pkt = pkt.first_byte_num / params->psize;
 
         if (cur_pkt - lst_pkt > 1) {
-            for (size_t i = lst_pkt + 1; i < cur_pkt; i++) {
-                eprintln("MISSING: BEFORE %zu EXPECTED %zu", cur_pkt, i);
-            }
-            reset = true;
-            continue;
-        } 
-
+            pending.insert({lst_pkt + 1, cur_pkt - 1});
+            for (const auto& [l, r] : pending)
+                for (size_t i = l; i <= r; i++)
+                    eprintln("MISSING: BEFORE %zu EXPECTED %zu", cur_pkt, i);
+        }
+        
         memcpy(buffer + nread * params->psize, pkt.audio_data, params->psize);
         nread++;
 
@@ -167,7 +174,6 @@ static void run(const receiver_params* params) {
             //     ongoing_flush = false;
             // });
             // t.detach();
-            reset = true;
         }
     }
 }
