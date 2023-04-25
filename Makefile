@@ -1,7 +1,7 @@
 CC = g++
 CFLAGS = -Wall -Wextra -O2 -std=c++20
-# LDFLAGS = -lboost_program_options
-# INCLUDES = -I/usr/include/boost
+LDFLAGS = -lboost_program_options -pthread
+INCLUDES = -I/usr/include/boost
 
 # List of source files
 COMMON_SOURCES := $(wildcard src/utils/*.cc)

@@ -2,8 +2,8 @@
 
 #include <cstdint>
 
-struct __attribute__((__packed__)) audio_packet {
-    uint64_t session_id;
-    uint64_t first_byte_num;
-    uint8_t  audio_data[];
-};
+uint64_t get_session_id(const uint8_t* pkt_buf);
+
+uint64_t get_first_byte_num(const uint8_t* pkt_buf);
+
+uint8_t* get_audio_data(const uint8_t* pkt_buf);

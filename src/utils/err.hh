@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cstdio>
 #include <cstdlib>
+#include <cstdio>
 #include <cerrno>
 #include <cstring>
 
