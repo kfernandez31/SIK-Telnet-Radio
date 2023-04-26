@@ -8,19 +8,24 @@ public:
     cyclical_buffer(const size_t capacity);
     ~cyclical_buffer();
 
-    void   dump(const size_t nbytes);
-    void   fill_gap(const uint8_t* src, const size_t offset);
     void   reset(const size_t psize);
+    void   pop_tail(uint8_t* dst, const size_t nbytes);
+    void   pop_tail(uint8_t* dst);
+    void   fill_gap(const uint8_t* src, const size_t offset);
+    void   push_head(const uint8_t* src, const size_t offset);
     size_t range() const;
-
-    void   advance(const uint8_t* src, const size_t offset);
- 
+    bool   empty() const;
     size_t rounded_cap() const;   
-
-    uint8_t* data;
-    bool*    populated;
-    size_t   capacity, tail, head, psize;
+    size_t psize() const;
+    size_t tail() const;
+    size_t head() const;
+    bool   occupied(const size_t idx) const;
 private:
+    size_t _capacity, _psize, _tail, _head;
+    bool*  _occupied;
+    uint8_t* _data;
+
     enum side  { NONE, LEFT, RIGHT, };
+
     side   sideof(const size_t idx) const;
 };

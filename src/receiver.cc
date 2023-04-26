@@ -12,6 +12,7 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
+#include <atomic>
 
 #include <boost/program_options.hpp>
 namespace bpo = boost::program_options;
@@ -37,9 +38,10 @@ enum flusher_state_t {
 };
 
 int socket_fd;
-flusher_state_t flusher_state;
+std::atomic<flusher_state_t> flusher_state;
 std::condition_variable flusher_cv;
 std::thread flusher;
+cyclical_buffer* buf_ptr;
 
 static receiver_params get_params(int argc, char* argv[]) {
     bpo::options_description desc("Allowed options");
@@ -103,9 +105,11 @@ static size_t read_packet(const int socket_fd, struct sockaddr_in* sender_addr, 
 }
 
 static void cleanup() {
-    flusher_state = flusher_state_t::DONE;
+    flusher_state.store(flusher_state_t::DONE);
     flusher_cv.notify_one();
     flusher.join();
+    if (buf_ptr)
+        buf_ptr->~cyclical_buffer();
     CHECK_ERRNO(close(socket_fd));
 }
 
@@ -115,22 +119,26 @@ static void signal_handler(int signum) {
     exit(signum); //TODO: this leaks
 }
 
-// the flusher's variables are intentionally not under shared_pointers, as they're guaranteed to be valid
+// the references the flusher holds are guaranteed to be valid
 static void flushing_work(
     cyclical_buffer& buf,
-    size_t& nbytes,
-    flusher_state_t& state,
     std::mutex& buf_mtx
 ) {
     for (;;) {
+        flusher_state.store(flusher_state_t::WAIT);
         std::unique_lock<std::mutex> lock(buf_mtx);
         //eprintln("flusher --- going to sleep");
-        flusher_cv.wait(lock, [&] { return state != flusher_state_t::WAIT; });
-        if (state == flusher_state_t::DONE)
+        flusher_cv.wait(lock, [&] { return flusher_state.load() != flusher_state_t::WAIT; });
+        if (flusher_state.load() == flusher_state_t::DONE)
             break;
+        uint8_t pkt_buf[buf.psize()];
         //eprintln("flusher --- starting work");
-        buf.dump(nbytes);
-        state = flusher_state_t::WAIT;
+        while (!buf.empty()) {
+            buf.pop_tail(pkt_buf);
+            ssize_t nwritten = write(STDOUT_FILENO, pkt_buf, buf.psize());
+            VERIFY(nwritten);
+            ENSURE(nwritten == buf.psize());
+        }
     }
     //eprintln("flusher --- dying!");
 }
@@ -139,8 +147,8 @@ static void print_pending(const cyclical_buffer& buf, const uint64_t abs_head, c
     uint64_t abs_tail  = abs_head - buf.range();
     size_t head_offset = cur_pkt - abs_head;
     size_t tail_offset = cur_pkt - abs_tail;
-    size_t missing_cnt = head_offset / buf.psize;
-    size_t last_pkt    = (buf.tail + tail_offset + buf.rounded_cap() - buf.psize) % buf.rounded_cap();
+    size_t missing_cnt = head_offset / buf.psize();
+    size_t last_pkt    = (buf.tail() + tail_offset + buf.rounded_cap() - buf.psize()) % buf.rounded_cap();
     
     //eprintln("[15] abs_tail = %zu", abs_tail);
     //eprintln("[15] head_offset = %zu", head_offset);
@@ -149,9 +157,9 @@ static void print_pending(const cyclical_buffer& buf, const uint64_t abs_head, c
     //eprintln("[18] last_pkt = %zu", last_pkt);
 
     if (abs_tail < cur_pkt)
-        for (size_t i = buf.tail; i != last_pkt; i = (i + buf.psize) % buf.rounded_cap()) {
+        for (size_t i = buf.tail(); i != last_pkt; i = (i + buf.psize()) % buf.rounded_cap()) {
             //eprintln("[19] i = %zu", i);
-            missing_cnt += !buf.populated[i];
+            missing_cnt += !buf.occupied(i);
         }
 
     char log_buf[missing_cnt * TOTAL_LOG_LEN];
@@ -159,13 +167,13 @@ static void print_pending(const cyclical_buffer& buf, const uint64_t abs_head, c
 
     size_t len = 0;
     if (abs_tail < cur_pkt)
-        for (size_t i = buf.tail; i != last_pkt; i = (i + buf.psize) % buf.rounded_cap())
-            if (!buf.populated[i]) {
+        for (size_t i = buf.tail(); i != last_pkt; i = (i + buf.psize()) % buf.rounded_cap())
+            if (!buf.occupied(i)) {
                 size_t nprinted = snprintf(log_buf + len, TOTAL_LOG_LEN, fmt, cur_pkt, abs_tail + i);
                 VERIFY(nprinted);
                 len += nprinted;
             }
-    for (size_t i = 0; i < head_offset; i += buf.psize) {
+    for (size_t i = 0; i < head_offset; i += buf.psize()) {
         size_t nprinted = snprintf(log_buf + len, TOTAL_LOG_LEN, fmt, cur_pkt, abs_head + i);
         VERIFY(nprinted);
         len += nprinted;
@@ -179,17 +187,16 @@ static void print_pending(const cyclical_buffer& buf, const uint64_t abs_head, c
 // head_byte_num == abs_head
 static void try_write_packet(const uint64_t first_byte_num, const uint8_t* audio_data, cyclical_buffer& buf, uint64_t& abs_head) {
     uint64_t abs_tail  = abs_head - buf.range();
-    if (first_byte_num < abs_tail) // dismiss, packet is too far behind
-    {
+    if (first_byte_num < abs_tail) {// dismiss, packet is too far behind
         //eprintln("  try_write_packet --- dismiss");
         return;
     }
-    if (first_byte_num >= abs_head) { // advance
-        //eprintln("  try_write_packet --- advance");
+    if (first_byte_num >= abs_head) { // push_head
+        //eprintln("  try_write_packet --- push_head");
         size_t head_offset = first_byte_num - abs_head;
         print_pending(buf, abs_head, first_byte_num);
-        buf.advance(audio_data, head_offset);
-        abs_head = first_byte_num + buf.psize;
+        buf.push_head(audio_data, head_offset);
+        abs_head = first_byte_num + buf.psize();
     } else { // fill in a gap
         //eprintln("  try_write_packet --- fill_gap");
         size_t tail_offset = first_byte_num - abs_tail;
@@ -199,17 +206,17 @@ static void try_write_packet(const uint64_t first_byte_num, const uint8_t* audio
 
 static void run(const receiver_params* params) {
     uint64_t abs_head, byte0, cur_session = NO_SESSION;
-    size_t   to_flush;
     bool     first_flush;
     struct sockaddr_in sender_addr = get_addr(params->src_addr.c_str(), NULL);
     socket_fd = bind_socket(params->data_port);
     eprintln("Listening on port %u...", params->data_port);
     cyclical_buffer buf(params->bsize);
+    buf_ptr = &buf;
     signal(SIGINT, signal_handler);
 
     std::mutex buf_mtx;
     flusher_state = flusher_state_t::WAIT;
-    flusher = std::thread([&] { flushing_work(buf, to_flush, flusher_state, buf_mtx); });
+    flusher = std::thread([&] { flushing_work(buf, buf_mtx); });
 
     uint8_t pkt_buf[MAX_UDP_PKT_SIZE];
     for (size_t it = 0;; it++) {
@@ -225,7 +232,7 @@ static void run(const receiver_params* params) {
             continue;
         }
 
-        if (buf.psize > params->bsize)
+        if (buf.psize() > params->bsize)
             continue;
 
         if (session_id > cur_session) {
@@ -247,19 +254,17 @@ static void run(const receiver_params* params) {
         //eprintln("run --- try_write_packet(%llu, _, _, %llu)", first_byte_num, abs_head);
         //eprintln("run --- buffer state (before):    tail = %zu,    head = %zu,     range = %zu", buf.tail, buf.head, buf.range());
         try_write_packet(first_byte_num, audio_data, buf, abs_head);
+        lock.unlock();
         //eprintln("run --- buffer state (after):    tail = %zu,    head = %zu,     range = %zu", buf.tail, buf.head, buf.range());
 
-        if (!first_flush || (first_flush && (first_byte_num + buf.psize - 1) >= (byte0 + params->bsize / 4 * 3))) {
+        if (!first_flush || (first_flush && (first_byte_num + buf.psize() - 1) >= (byte0 + params->bsize / 4 * 3))) {
             // size_t cnt = 0;
             // for (size_t i = 0; i < buf.rounded_cap(); i += buf.psize)
-            //     cnt += buf.populated[i];
+            //     cnt += buf.occupied[i];
             // eprintln("Buffer's range = %zu, population: %zu", buf.range(), cnt);
-
             first_flush   = false;
-            to_flush      = buf.range();
-            flusher_state = flusher_state_t::WORK;
+            flusher_state.store(flusher_state_t::WORK);
             //eprintln("[6]  Delegating flush:  to_flush = %llu", buf.range());
-            lock.unlock();
             flusher_cv.notify_one();
         } else {
             //eprintln("[7] Did not flush");

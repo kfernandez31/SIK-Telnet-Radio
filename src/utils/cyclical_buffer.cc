@@ -7,136 +7,146 @@
 #include <algorithm>
 
 cyclical_buffer::cyclical_buffer(const size_t capacity) 
-    : capacity(capacity), tail(0), head(0), psize(0)
+    : _capacity(capacity), _psize(0), _tail(0), _head(0)
 {
-    data      = new uint8_t[capacity]();
-    populated = new bool[capacity]();
+    _data     = new uint8_t[capacity]();
+    _occupied = new bool[capacity]();
 }
 
 size_t cyclical_buffer::rounded_cap() const {
-    return capacity / psize * psize;
+    return _capacity / _psize * _psize;
 }
 
 cyclical_buffer::~cyclical_buffer() {
-    delete[] data;
-    delete[] populated;
+    delete[] _data;
+    delete[] _occupied;
 }
 
 cyclical_buffer::side cyclical_buffer::sideof(const size_t idx) const {
-    if (tail <= head) {
-        if (tail <= idx && idx <= head)
+    if (_tail <= _head) {
+        if (_tail <= idx && idx <= _head)
             return LEFT;
     } else {
-        if (idx <= head)
+        if (idx <= _head)
             return LEFT;
-        else if (tail <= idx && idx < rounded_cap())
+        else if (_tail <= idx && idx < rounded_cap())
             return RIGHT;
     }
     return NONE;
 }
 
 void cyclical_buffer::reset(const size_t psize) {
-    tail = head = 0;
-    this->psize = psize;
-    memset(data, 0, capacity);
-    memset(populated, 0, capacity);
+    _tail  = _head = 0;
+    _psize = psize;
+    memset(_data, 0, _capacity);
+    memset(_occupied, 0, _capacity);
 }
 
-void cyclical_buffer::dump(const size_t nbytes) {
-    ENSURE(nbytes % psize == 0);
-    if (tail <= head) {
-        ENSURE(sideof(tail + nbytes - 1) == LEFT);
-
-        ssize_t nwritten = write(STDOUT_FILENO, data + tail, nbytes);
-        VERIFY(nwritten);
-        ENSURE((size_t)nwritten == nbytes);
-
-        memset(data + tail, 0, nbytes);
-        memset(populated + tail, 0, nbytes);
-    } else {
-        size_t fst_chunk = std::max(nbytes, rounded_cap() - tail);
+void cyclical_buffer::pop_tail(uint8_t* dst, const size_t nbytes) {
+    ENSURE(nbytes % _psize == 0);
+    size_t fst_chunk = nbytes;
+    if (_tail <= _head)
+        ENSURE(sideof(_tail + nbytes - 1) == LEFT);
+    else if (fst_chunk > rounded_cap() - _tail) {
+        fst_chunk = rounded_cap() - _tail;
         size_t snd_chunk = nbytes - fst_chunk;
         ENSURE(sideof(snd_chunk) == LEFT);
-
-        ssize_t nwritten = write(STDOUT_FILENO, data + tail, fst_chunk);
-        VERIFY(nwritten);
-        ENSURE((ssize_t)fst_chunk == nwritten);
-
-        nwritten = write(STDOUT_FILENO, data, snd_chunk);    
-        VERIFY(nwritten);
-        ENSURE((ssize_t)snd_chunk == nwritten);
-
-        memset(data + tail, 0, fst_chunk);
-        memset(data, 0, snd_chunk);
-        memset(populated + tail, 0, fst_chunk);
-        memset(populated, 0, snd_chunk);
+        memset(_data, 0, snd_chunk);
+        memset(_occupied, 0, snd_chunk);
     }
-    tail = (tail + nbytes) % rounded_cap();
+
+    memcpy(dst, _data + _tail, fst_chunk);
+    memset(_data + _tail, 0, fst_chunk);
+    memset(_occupied + _tail, 0, fst_chunk);
+
+    _tail = (_tail + nbytes) % rounded_cap();
+}
+
+void cyclical_buffer::pop_tail(uint8_t* dst) {
+    pop_tail(dst, _psize);
 }
 
 void cyclical_buffer::fill_gap(const uint8_t* src, const size_t offset) {
-    ENSURE(offset % psize == 0);
+    ENSURE(offset % _psize == 0);
     auto side = sideof(offset);
     ENSURE(side != NONE);
-    if (tail <= head) {
-        memcpy(data + tail + offset, src, psize);
-        populated[tail + offset] = true;
+    if (_tail <= _head) {
+        memcpy(_data + _tail + offset, src, _psize);
+        _occupied[_tail + offset] = true;
     } else {
-        if (side == RIGHT) { //TODO: może skrócić
-            memcpy(data + tail + offset, src, psize);
-            populated[tail + offset] = true;
-        } else {
-            size_t pos = offset - rounded_cap() - tail;
-            memcpy(data + pos, src, psize);
-            populated[pos] = true;
-        }
+        size_t pos = _tail + offset;
+        if (side == LEFT) 
+            pos -= rounded_cap() - _tail;
+        memcpy(_data + pos, src, _psize);
+        _occupied[pos] = true;
     }
 }
 
-void cyclical_buffer::advance(const uint8_t* src, const size_t offset) {
-    ENSURE(offset % psize == 0);
+void cyclical_buffer::push_head(const uint8_t* src, const size_t offset) {
+    ENSURE(offset % _psize == 0);
     if (offset >= rounded_cap()) {
-        reset(psize);
-        memcpy(data, src, psize);
-        populated[0] = true;
-        head = psize;
-        tail = (head + psize) % rounded_cap();
+        reset(_psize);
+        memcpy(_data, src, _psize);
+        _occupied[0] = true;
+        _head        = _psize;
+        _tail        = (_head + _psize) % rounded_cap();
         return;
     }
 
-    size_t write_pos = (head + offset) % rounded_cap();
+    size_t write_pos = (_head + offset) % rounded_cap();
 
-    if (write_pos >= head) {
-        memset(data + head, 0, write_pos - head);
-        memset(populated + head, 0, write_pos - head);
+    if (write_pos >= _head) {
+        memset(_data + _head, 0, write_pos - _head);
+        memset(_occupied + _head, 0, write_pos - _head);
     } else {
-        memset(data + head, 0, rounded_cap() - head);
-        memset(data, 0, write_pos);
-        memset(populated + head, 0, rounded_cap() - head);
-        memset(populated, 0, write_pos);
+        memset(_data + _head, 0, rounded_cap() - _head);
+        memset(_data, 0, write_pos);
+        memset(_occupied + _head, 0, rounded_cap() - _head);
+        memset(_occupied, 0, write_pos);
     }
-    memcpy(data + write_pos, src, psize);
-    populated[write_pos] = true;
+    memcpy(_data + write_pos, src, _psize);
+    _occupied[write_pos] = true;
 
-    size_t virt_new_head = head + offset + psize; 
+    size_t virt_new_head = _head + offset + _psize; 
     size_t new_head      = virt_new_head % rounded_cap();
-    size_t new_tail      = (new_head + psize) % rounded_cap();
-    //eprintln("    advance --- virt_new_head = %zu, new_head = %zu, new_tail = %zu", virt_new_head, new_head, new_tail);
+    size_t new_tail      = (new_head + _psize) % rounded_cap();
+    //eprintln("    push_head --- virt_new_head = %zu, new_head = %zu, new_tail = %zu", virt_new_head, new_head, new_tail);
     if (virt_new_head >= rounded_cap()) { // fold
-        if ((tail <= head && tail <= new_head) || head < tail) {
-            //eprintln("    advance --- case 1");
-            tail = new_tail;
+        if ((_tail <= _head && _tail <= new_head) || _head < _tail) {
+            //eprintln("    push_head --- case 1");
+            _tail = new_tail;
         }
-    } else if (head < tail && tail <= new_head) {
-        //eprintln("    advance --- case 1");
-        tail = new_tail;
+    } else if (_head < _tail && _tail <= new_head) {
+        //eprintln("    push_head --- case 1");
+        _tail = new_tail;
     }
-    head = new_head;
+    _head = new_head;
 }
 
 size_t cyclical_buffer::range() const {
-    if (tail <= head)
-        return head - tail;
+    if (_tail <= _head)
+        return _head - _tail;
     else 
-        return head + (rounded_cap() - tail);
+        return _head + (rounded_cap() - _tail);
+}
+
+bool cyclical_buffer::empty() const {
+    return range() == 0;
+}
+
+
+size_t cyclical_buffer::psize() const {
+    return _psize;
+}
+
+size_t cyclical_buffer::tail() const {
+    return _tail;
+}
+
+size_t cyclical_buffer::head() const {
+    return _head;
+}
+
+bool cyclical_buffer::occupied(const size_t idx) const {
+    return _occupied[idx];
 }
