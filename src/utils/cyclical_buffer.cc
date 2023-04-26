@@ -110,16 +110,10 @@ void cyclical_buffer::push_head(const uint8_t* src, const size_t offset) {
     size_t virt_new_head = _head + offset + _psize; 
     size_t new_head      = virt_new_head % rounded_cap();
     size_t new_tail      = (new_head + _psize) % rounded_cap();
-    //eprintln("    push_head --- virt_new_head = %zu, new_head = %zu, new_tail = %zu", virt_new_head, new_head, new_tail);
-    if (virt_new_head >= rounded_cap()) { // fold
-        if ((_tail <= _head && _tail <= new_head) || _head < _tail) {
-            //eprintln("    push_head --- case 1");
-            _tail = new_tail;
-        }
-    } else if (_head < _tail && _tail <= new_head) {
-        //eprintln("    push_head --- case 1");
+    if (virt_new_head >= rounded_cap() && ((_tail <= _head && _tail <= new_head) || _head < _tail))
         _tail = new_tail;
-    }
+    else if (_head < _tail && _tail <= new_head)
+        _tail = new_tail;
     _head = new_head;
 }
 
