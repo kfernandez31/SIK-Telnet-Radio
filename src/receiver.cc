@@ -2,6 +2,7 @@
 #include "utils/endian.hh"
 #include "utils/audio_packet.hh"
 #include "utils/net.hh"
+#include "utils/mem.hh"
 #include "utils/cyclical_buffer.hh"
 
 #include <unistd.h>
@@ -13,8 +14,10 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <thread>
 
 #include <boost/program_options.hpp>
+
 namespace bpo = boost::program_options;
 
 #define NO_SESSION 0
@@ -23,24 +26,22 @@ namespace bpo = boost::program_options;
 #define LOG_MSG_LEN (sizeof("MISSING: BEFORE  EXPECTED  \n") - 1)
 #define TOTAL_LOG_LEN (2 * MAX_UINT64_T_DIGITS + LOG_MSG_LEN)
 
-using interval = std::pair<uint64_t, uint64_t>;
-
 struct receiver_params {
     std::string src_addr;
     uint16_t    data_port;
     size_t      bsize;
 };
 
-enum flusher_state_t {
+enum printer_state_t {
     WORK,
     DONE,
     WAIT,
 };
 
 int socket_fd;
-std::atomic<flusher_state_t> flusher_state;
-std::condition_variable flusher_cv;
-std::thread flusher;
+std::atomic<printer_state_t> printer_state;
+std::condition_variable printer_cv;
+std::thread printer;
 cyclical_buffer* buf_ptr;
 
 static receiver_params get_params(int argc, char* argv[]) {
@@ -105,9 +106,9 @@ static size_t read_packet(const int socket_fd, struct sockaddr_in* sender_addr, 
 }
 
 static void cleanup() {
-    flusher_state.store(flusher_state_t::DONE);
-    flusher_cv.notify_one();
-    flusher.join();
+    printer_state.store(printer_state_t::DONE);
+    printer_cv.notify_one();
+    printer.join();
     if (buf_ptr)
         buf_ptr->~cyclical_buffer();
     CHECK_ERRNO(close(socket_fd));
@@ -119,24 +120,18 @@ static void signal_handler(int signum) {
     exit(signum);
 }
 
-// the references the flusher holds are guaranteed to be valid
-static void flushing_work(
+// the references the printer holds are guaranteed to be valid
+static void printing_work(
     cyclical_buffer& buf,
     std::mutex& buf_mtx
 ) {
     for (;;) {
-        flusher_state.store(flusher_state_t::WAIT);
+        printer_state.store(printer_state_t::WAIT);
         std::unique_lock<std::mutex> lock(buf_mtx);
-        flusher_cv.wait(lock, [&] { return flusher_state.load() != flusher_state_t::WAIT; });
-        if (flusher_state.load() == flusher_state_t::DONE)
-            break;
-        uint8_t pkt_buf[buf.psize()];
-        while (!buf.empty()) {
-            buf.pop_tail(pkt_buf);
-            ssize_t nwritten = write(STDOUT_FILENO, pkt_buf, buf.psize());
-            VERIFY(nwritten);
-            ENSURE(nwritten == buf.psize());
-        }
+        printer_cv.wait(lock, [&] { return printer_state.load() != printer_state_t::WAIT; });
+        if (printer_state.load() == printer_state_t::DONE)
+            break;        
+        buf.dump_tail(buf.psize() * buf.cnt_upto_gap());
     }
 }
 
@@ -164,14 +159,14 @@ static void print_missing(const cyclical_buffer& buf, const uint64_t abs_head, c
     if (abs_tail < cur_pkt)
         for (size_t i = buf.tail(); i != last_pkt; i = (i + buf.psize()) % buf.rounded_cap())
             if (!buf.occupied(i)) {
-                size_t nprinted = snprintf(log_buf + len, TOTAL_LOG_LEN, fmt, cur_pkt, abs_tail + i);
+                ssize_t nprinted = snprintf(log_buf + len, TOTAL_LOG_LEN, fmt, cur_pkt, abs_tail + i);
                 VERIFY(nprinted);
-                len += nprinted;
+                len += (size_t)nprinted;
             }
     for (size_t i = 0; i < head_offset; i += buf.psize()) {
-        size_t nprinted = snprintf(log_buf + len, TOTAL_LOG_LEN, fmt, cur_pkt, abs_head + i);
+        ssize_t nprinted = snprintf(log_buf + len, TOTAL_LOG_LEN, fmt, cur_pkt, abs_head + i);
         VERIFY(nprinted);
-        len += nprinted;
+        len += (size_t)nprinted;
     }
 
     ssize_t nwritten = write(STDERR_FILENO, log_buf, len);
@@ -179,10 +174,9 @@ static void print_missing(const cyclical_buffer& buf, const uint64_t abs_head, c
     ENSURE((ssize_t)len == nwritten);
 }
 
-// head_byte_num == abs_head
 static void try_write_packet(const uint64_t first_byte_num, const uint8_t* audio_data, cyclical_buffer& buf, uint64_t& abs_head) {
     uint64_t abs_tail  = abs_head - buf.range();
-    if (first_byte_num < abs_tail)// dismiss, packet is too far behind
+    if (first_byte_num < abs_tail) // dismiss, packet is too far behind
         return;
     if (first_byte_num >= abs_head) { // advance
         size_t head_offset = first_byte_num - abs_head;
@@ -197,7 +191,7 @@ static void try_write_packet(const uint64_t first_byte_num, const uint8_t* audio
 
 static void run(const receiver_params* params) {
     uint64_t abs_head, byte0, cur_session = NO_SESSION;
-    bool     first_flush;
+    bool     first_print;
     struct sockaddr_in sender_addr = get_addr(params->src_addr.c_str(), NULL);
     socket_fd = bind_socket(params->data_port);
     eprintln("\nListening on port %u...", params->data_port);
@@ -206,8 +200,8 @@ static void run(const receiver_params* params) {
     signal(SIGINT, signal_handler);
 
     std::mutex buf_mtx;
-    flusher_state = flusher_state_t::WAIT;
-    flusher = std::thread([&] { flushing_work(buf, buf_mtx); });
+    printer_state = printer_state_t::WAIT;
+    printer = std::thread([&] { printing_work(buf, buf_mtx); });
 
     uint8_t pkt_buf[MAX_UDP_PKT_SIZE];
     for (;;) {
@@ -230,7 +224,7 @@ static void run(const receiver_params* params) {
             eprintln("New session %llu!", session_id);
             cur_session = session_id;
             abs_head    = byte0 = first_byte_num;
-            first_flush = true;
+            first_print = true;
             std::unique_lock<std::mutex> lock(buf_mtx);
             buf.reset(new_psize);
         }
@@ -238,18 +232,15 @@ static void run(const receiver_params* params) {
         if (first_byte_num < byte0)
             continue;
         
-        std::unique_lock<std::mutex> lock(buf_mtx);
-        try_write_packet(first_byte_num, audio_data, buf, abs_head);
-        lock.unlock();
+        {
+            std::unique_lock<std::mutex> lock(buf_mtx);
+            try_write_packet(first_byte_num, audio_data, buf, abs_head);
+        }
 
-        if (!first_flush || (first_flush && (first_byte_num + buf.psize() - 1) >= (byte0 + params->bsize / 4 * 3))) {
-            // size_t cnt = 0;
-            // for (size_t i = 0; i < buf.rounded_cap(); i += buf.psize())
-            //     cnt += buf.occupied(i);
-            // eprintln("Buffer's range = %zu, population: %zu", buf.range(), cnt);
-            first_flush = false;
-            flusher_state.store(flusher_state_t::WORK);
-            flusher_cv.notify_one();
+        if (!first_print || (first_print && (first_byte_num + buf.psize() - 1) >= (byte0 + params->bsize / 4 * 3))) {
+            first_print = false;
+            printer_state.store(printer_state_t::WORK);
+            printer_cv.notify_one();
         }
     }
 

@@ -1,5 +1,6 @@
 #include "./cyclical_buffer.hh"
 #include "./err.hh"
+#include "./mem.hh"
 
 #include <unistd.h>
 #include <cstring>
@@ -42,28 +43,25 @@ void cyclical_buffer::reset(const size_t psize) {
     memset(_occupied, 0, _capacity);
 }
 
-void cyclical_buffer::pop_tail(uint8_t* dst, const size_t nbytes) {
+void cyclical_buffer::dump_tail(const size_t nbytes) {
     ENSURE(nbytes % _psize == 0);
     size_t fst_chunk = nbytes;
-    if (_tail <= _head)
-        ENSURE(sideof(_tail + nbytes - 1) == LEFT);
-    else if (fst_chunk > rounded_cap() - _tail) {
+    size_t snd_chunk = 0;
+    if (_tail > _head && fst_chunk > rounded_cap() - _tail) {
         fst_chunk = rounded_cap() - _tail;
-        size_t snd_chunk = nbytes - fst_chunk;
-        ENSURE(sideof(snd_chunk) == LEFT);
-        memset(_data, 0, snd_chunk);
-        memset(_occupied, 0, snd_chunk);
+        snd_chunk = nbytes - fst_chunk;
     }
 
-    memcpy(dst, _data + _tail, fst_chunk);
+    my_write(STDOUT_FILENO, _data + _tail, fst_chunk);
+    my_write(STDOUT_FILENO, _data, snd_chunk);
+
     memset(_data + _tail, 0, fst_chunk);
     memset(_occupied + _tail, 0, fst_chunk);
 
-    _tail = (_tail + nbytes) % rounded_cap();
-}
+    memset(_data, 0, snd_chunk);
+    memset(_occupied, 0, snd_chunk);
 
-void cyclical_buffer::pop_tail(uint8_t* dst) {
-    pop_tail(dst, _psize);
+    _tail = (_tail + nbytes) % rounded_cap();
 }
 
 void cyclical_buffer::fill_gap(const uint8_t* src, const size_t offset) {
@@ -117,17 +115,23 @@ void cyclical_buffer::push_head(const uint8_t* src, const size_t offset) {
     _head = new_head;
 }
 
+size_t cyclical_buffer::cnt_upto_gap() const {
+    size_t cnt = 0, i = _tail;
+    do {
+        if (!_occupied[i])
+            break;
+        cnt++;
+        i = (i + _psize) % rounded_cap();
+    } while (i != _tail);
+    return cnt;
+}
+
 size_t cyclical_buffer::range() const {
     if (_tail <= _head)
         return _head - _tail;
     else 
         return _head + (rounded_cap() - _tail);
 }
-
-bool cyclical_buffer::empty() const {
-    return range() == 0;
-}
-
 
 size_t cyclical_buffer::psize() const {
     return _psize;

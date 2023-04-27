@@ -25,7 +25,7 @@ struct sender_params {
     size_t      psize;
 };
 
-static ssize_t readn_blocking(uint8_t* buf, const size_t n) {
+static size_t readn_blocking(uint8_t* buf, const size_t n) {
     uint8_t* bpos  = buf;
     size_t   nleft = n;
     while (nleft) {
@@ -46,8 +46,7 @@ static void send_packet(const int socket_fd, const uint64_t session_id, const ui
     bufpos = my_memcpy(bufpos, &first_byte_num, sizeof(uint64_t));
     my_memcpy(bufpos, audio_data, psize);
 
-    ssize_t sent_length = write(socket_fd, buffer, sizeof(buffer));
-    ENSURE(sent_length == (ssize_t)sizeof(buffer));
+    my_write(socket_fd, buffer, sizeof(buffer));
 }
 
 static sender_params get_params(int argc, char* argv[]) {
@@ -104,12 +103,9 @@ static void run(const sender_params* params) {
     signal(SIGINT, signal_handler);
 
     for (size_t nsent = 0;; nsent += params->psize) {
-        ssize_t nread = readn_blocking(audio_data, params->psize);
-
-        VERIFY(nread);
-        if (nread < (ssize_t)params->psize)
+        size_t nread = readn_blocking(audio_data, params->psize);
+        if (nread < params->psize)
             break; // End of input or incomplete packet
-
         send_packet(socket_fd, htonll(params->session_id), htonll(nsent), audio_data, params->psize);
     }
 
