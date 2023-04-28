@@ -68,16 +68,11 @@ void cyclical_buffer::fill_gap(const uint8_t* src, const size_t offset) {
     ENSURE(offset % _psize == 0);
     auto side = sideof(offset);
     ENSURE(side != NONE);
-    if (_tail <= _head) {
-        memcpy(_data + _tail + offset, src, _psize);
-        _occupied[_tail + offset] = true;
-    } else {
-        size_t pos = _tail + offset;
-        if (side == LEFT) 
-            pos -= rounded_cap() - _tail;
-        memcpy(_data + pos, src, _psize);
-        _occupied[pos] = true;
-    }
+    size_t pos = _tail + offset;
+    if (_tail > _head && side == LEFT) 
+        pos -= rounded_cap() - _tail;
+    memcpy(_data + pos, src, _psize);
+    _occupied[pos] = true;
 }
 
 void cyclical_buffer::push_head(const uint8_t* src, const size_t offset) {

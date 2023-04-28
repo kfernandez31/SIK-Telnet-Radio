@@ -39,14 +39,14 @@ static size_t readn_blocking(uint8_t* buf, const size_t n) {
     return n - nleft;
 }
 
-static void send_packet(const int socket_fd, const uint64_t session_id, const uint64_t first_byte_num, const uint8_t* audio_data, const size_t psize) {
+static void send_packet(struct sockaddr_in* dst_addr, const int socket_fd, const uint64_t session_id, const uint64_t first_byte_num, const uint8_t* audio_data, const size_t psize) {
     uint8_t buffer[2 * sizeof(uint64_t) + psize];
     uint8_t* bufpos = buffer;
     bufpos = my_memcpy(bufpos, &session_id, sizeof(uint64_t));
     bufpos = my_memcpy(bufpos, &first_byte_num, sizeof(uint64_t));
     my_memcpy(bufpos, audio_data, psize);
 
-    my_write(socket_fd, buffer, sizeof(buffer));
+    VERIFY(sendto(socket_fd, buffer, sizeof(buffer), 0, (sockaddr*)dst_addr, sizeof(*dst_addr)));
 }
 
 static sender_params get_params(int argc, char* argv[]) {
@@ -96,17 +96,15 @@ static void signal_handler(int signum) {
 
 static void run(const sender_params* params) {
     uint8_t audio_data[params->psize];
-    struct sockaddr_in dst_addr = get_addr(params->dest_addr.c_str(), &params->data_port);
-    socket_fd = socket(PF_INET, SOCK_DGRAM, 0);
-    VERIFY(socket_fd);
-    VERIFY(connect(socket_fd, (struct sockaddr *)&dst_addr, sizeof(dst_addr)));
+    struct sockaddr_in dst_addr = get_addr(params->dest_addr.c_str(), params->data_port);
+    VERIFY(socket_fd = socket(PF_INET, SOCK_DGRAM, 0));
     signal(SIGINT, signal_handler);
 
     for (size_t nsent = 0;; nsent += params->psize) {
         size_t nread = readn_blocking(audio_data, params->psize);
         if (nread < params->psize)
             break; // End of input or incomplete packet
-        send_packet(socket_fd, htonll(params->session_id), htonll(nsent), audio_data, params->psize);
+        send_packet(&dst_addr, socket_fd, htonll(params->session_id), htonll(nsent), audio_data, params->psize);
     }
 
     cleanup();

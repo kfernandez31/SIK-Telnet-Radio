@@ -76,30 +76,22 @@ static receiver_params get_params(int argc, char* argv[]) {
     };
 }
 
-static int bind_socket(const uint16_t port) {
-    int socket_fd = socket(AF_INET, SOCK_DGRAM, 0); // creating IPv4 UDP socket
-    ENSURE(socket_fd > 0);
+static void bind_socket(const uint16_t port) {
+    VERIFY(socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)); // creating IPv4 UDP socket
 
-    struct sockaddr_in server_address;
-    server_address.sin_family      = AF_INET; // IPv4
-    server_address.sin_addr.s_addr = htonl(INADDR_ANY); // listening on all interfaces
-    server_address.sin_port        = htons(port);
+    struct sockaddr_in receiver_address;
+    receiver_address.sin_family      = AF_INET; // IPv4
+    receiver_address.sin_addr.s_addr = INADDR_ANY; // listening on all interfaces
+    receiver_address.sin_port        = htons(port);
 
     // bind the socket to a concrete address
-    CHECK_ERRNO(bind(socket_fd, (struct sockaddr*)&server_address, (socklen_t)sizeof(server_address)));
-    return socket_fd;
+    CHECK_ERRNO(bind(socket_fd, (struct sockaddr*)&receiver_address, (socklen_t)sizeof(receiver_address)));
 }
 
 static size_t read_packet(const int socket_fd, struct sockaddr_in* sender_addr, uint8_t* pkt_buf) {
-    static bool connected = false;
     ssize_t nread;
-    if (!connected) {
-        socklen_t addr_len = sizeof(*sender_addr);
-        nread = recvfrom(socket_fd, pkt_buf, MAX_UDP_PKT_SIZE, 0, (struct sockaddr*)sender_addr, &addr_len);
-        connect(socket_fd, (struct sockaddr*)sender_addr, addr_len);
-        connected = true;
-    } else
-        nread = recv(socket_fd, pkt_buf, MAX_UDP_PKT_SIZE, 0);
+    socklen_t addr_len = sizeof(*sender_addr);
+    nread = recvfrom(socket_fd, pkt_buf, MAX_UDP_PKT_SIZE, 0, (struct sockaddr*)sender_addr, &addr_len);
     VERIFY(nread);
     ENSURE((size_t)nread > 2 * sizeof(uint64_t));
     return nread - 2 * sizeof(uint64_t);
@@ -140,38 +132,39 @@ static void print_missing(const cyclical_buffer& buf, const uint64_t abs_head, c
     size_t head_offset = cur_pkt - abs_head;
     size_t tail_offset = cur_pkt - abs_tail;
     size_t missing_cnt = head_offset / buf.psize();
-    size_t last_pkt    = (buf.tail() + tail_offset + buf.rounded_cap() - buf.psize()) % buf.rounded_cap();
-    
-    //eprintln("[15] abs_tail = %zu", abs_tail);
-    //eprintln("[15] head_offset = %zu", head_offset);
-    //eprintln("[16] tail_offset = %zu", tail_offset);
-    //eprintln("[17] missing_cnt = %zu", missing_cnt);
-    //eprintln("[18] last_pkt = %zu", last_pkt);
+    size_t cur_pkt_pos = (buf.tail() + tail_offset) % buf.rounded_cap();
 
-    if (abs_tail < cur_pkt)
-        for (size_t i = buf.tail(); i != last_pkt; i = (i + buf.psize()) % buf.rounded_cap())
+    if (abs_tail < cur_pkt) {
+        size_t i = buf.tail();
+        do {
             missing_cnt += !buf.occupied(i);
+            i = (i + buf.psize()) % buf.rounded_cap();
+        } while (i != cur_pkt_pos);
+    }
 
     char log_buf[missing_cnt * TOTAL_LOG_LEN];
     const char* fmt = "MISSING: BEFORE %llu EXPECTED %llu \n";
 
     size_t len = 0;
-    if (abs_tail < cur_pkt)
-        for (size_t i = buf.tail(); i != last_pkt; i = (i + buf.psize()) % buf.rounded_cap())
+    if (abs_tail < cur_pkt) {
+        size_t i = buf.tail();
+        do {
             if (!buf.occupied(i)) {
                 ssize_t nprinted = snprintf(log_buf + len, TOTAL_LOG_LEN, fmt, cur_pkt, abs_tail + i);
                 VERIFY(nprinted);
                 len += (size_t)nprinted;
             }
+            i = (i + buf.psize()) % buf.rounded_cap();
+        } while (i != cur_pkt_pos);
+    }
+
     for (size_t i = 0; i < head_offset; i += buf.psize()) {
         ssize_t nprinted = snprintf(log_buf + len, TOTAL_LOG_LEN, fmt, cur_pkt, abs_head + i);
         VERIFY(nprinted);
         len += (size_t)nprinted;
     }
 
-    ssize_t nwritten = write(STDERR_FILENO, log_buf, len);
-    VERIFY(nwritten);
-    ENSURE((ssize_t)len == nwritten);
+    my_write(STDERR_FILENO, log_buf, len);
 }
 
 static void try_write_packet(const uint64_t first_byte_num, const uint8_t* audio_data, cyclical_buffer& buf, uint64_t& abs_head) {
@@ -192,8 +185,9 @@ static void try_write_packet(const uint64_t first_byte_num, const uint8_t* audio
 static void run(const receiver_params* params) {
     uint64_t abs_head, byte0, cur_session = NO_SESSION;
     bool     first_print;
-    struct sockaddr_in sender_addr = get_addr(params->src_addr.c_str(), NULL);
-    socket_fd = bind_socket(params->data_port);
+    struct sockaddr_in expected_sender = get_addr(params->src_addr.c_str(), 0);
+
+    bind_socket(params->data_port);
     eprintln("\nListening on port %u...", params->data_port);
     cyclical_buffer buf(params->bsize);
     buf_ptr = &buf;
@@ -205,10 +199,16 @@ static void run(const receiver_params* params) {
 
     uint8_t pkt_buf[MAX_UDP_PKT_SIZE];
     for (;;) {
-        size_t   new_psize      = read_packet(socket_fd, &sender_addr, pkt_buf);
+        struct sockaddr_in cur_sender;
+        size_t   new_psize      = read_packet(socket_fd, &cur_sender, pkt_buf);
         uint64_t session_id     = get_session_id(pkt_buf);
         uint64_t first_byte_num = get_first_byte_num(pkt_buf);
         uint8_t* audio_data     = get_audio_data(pkt_buf);
+
+        if (!IN_ARE_ADDR_EQUAL(&expected_sender.sin_addr, &cur_sender.sin_addr)) {
+            eprintln("Expected sender %llu, but got %llu", expected_sender.sin_addr, cur_sender.sin_addr);
+            continue;
+        }
 
         if (session_id < cur_session) {
             eprintln("Ignoring old session %llu...", session_id);
