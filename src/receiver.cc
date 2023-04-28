@@ -183,8 +183,8 @@ static void try_write_packet(const uint64_t first_byte_num, const uint8_t* audio
 }
 
 static void run(const receiver_params* params) {
-    uint64_t abs_head, byte0, cur_session = NO_SESSION;
-    bool     first_print;
+    uint64_t abs_head = 0, byte0 = 0, cur_session = NO_SESSION;
+    bool     first_print = true;
     struct sockaddr_in expected_sender = get_addr(params->src_addr.c_str(), 0);
 
     bind_socket(params->data_port);
@@ -205,8 +205,8 @@ static void run(const receiver_params* params) {
         uint64_t first_byte_num = get_first_byte_num(pkt_buf);
         uint8_t* audio_data     = get_audio_data(pkt_buf);
 
-        if (!IN_ARE_ADDR_EQUAL(&expected_sender.sin_addr, &cur_sender.sin_addr)) {
-            eprintln("Expected sender %llu, but got %llu", expected_sender.sin_addr, cur_sender.sin_addr);
+        if (expected_sender.sin_addr.s_addr != cur_sender.sin_addr.s_addr) {
+            eprintln("Expected sender %llu, but got %llu", expected_sender.sin_addr.s_addr, cur_sender.sin_addr.s_addr);
             continue;
         }
 
