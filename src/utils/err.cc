@@ -1,21 +1,36 @@
-#include "./err.h"
+#include "err.hh"
 
-#include <cstdarg>
 #include <cstdio>
+#include <cerrno>
 #include <cstdlib>
+#include <cstdarg>
+#include <cstring>
 
-void fatal(const char *fmt, ...) {
-    va_list fmt_args;
-
-    fprintf(stderr, "Error: ");
-    va_start(fmt_args, fmt);
-    vfprintf(stderr, fmt, fmt_args);
-    va_end(fmt_args);
+[[noreturn]] void fatal_impl(const char* file, const size_t line, const char* msg) {
+    fprintf(stderr, "Error (%s:%zu): %s.", file, line, msg);
+    if (errno)
+        fprintf(stderr, "Errno: %s.", strerror(errno));
     fprintf(stderr, "\n");
-    exit(EXIT_FAILURE);
+    exit(errno ? errno : EXIT_FAILURE);
 }
 
-void eprintln(const char* fmt, ...) {
+[[noreturn]] void vfatal_impl(const char* file, const size_t line, const char* msg, ...) {
+    fprintf(stderr, "Error (%s:%zu): ", file, line);
+
+    va_list args;
+    va_start(args, msg);
+    vfprintf(stderr, msg, args);
+    va_end(args);
+
+    if (errno)
+        fprintf(stderr, ". Errno: %s.\n", strerror(errno));
+    else 
+        fprintf(stderr, ".\n");
+
+    exit(errno ? errno : EXIT_FAILURE);
+}
+
+void logerr(const char* fmt, ...) {
     va_list args;
     va_start(args, fmt);
     vfprintf(stderr, fmt, args);

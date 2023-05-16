@@ -11,6 +11,6 @@ uint8_t* my_memcpy(uint8_t* buffer, const void* src, const size_t nbytes) {
 
 void my_write(const int fd, const void* src, const size_t nbytes) {
     ssize_t nwritten = write(fd, src, nbytes);
-    VERIFY(nwritten);
-    ENSURE(nwritten == (ssize_t)nbytes);
+    if (-1 == nwritten || nwritten != (ssize_t)nbytes)
+        fatal("write");
 }

@@ -10,7 +10,8 @@ struct sockaddr_in get_addr(const char* host, const uint16_t port) {
     hints.ai_protocol = IPPROTO_UDP;
 
     struct addrinfo *addr_info;
-    CHECK(getaddrinfo(host, NULL, &hints, &addr_info));
+    if (0 != getaddrinfo(host, NULL, &hints, &addr_info))
+        fatal("getaddrinfo");
 
     struct sockaddr_in addr;
     addr.sin_family      = AF_INET; // IPv4

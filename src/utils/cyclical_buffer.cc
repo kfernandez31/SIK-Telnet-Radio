@@ -4,6 +4,7 @@
 
 #include <unistd.h>
 #include <cstring>
+#include <cassert>
 
 #include <algorithm>
 
@@ -44,7 +45,7 @@ void cyclical_buffer::reset(const size_t psize) {
 }
 
 void cyclical_buffer::dump_tail(const size_t nbytes) {
-    ENSURE(nbytes % _psize == 0);
+    assert(nbytes % _psize == 0);
     size_t fst_chunk = nbytes;
     size_t snd_chunk = 0;
     if (_tail > _head && fst_chunk > rounded_cap() - _tail) {
@@ -65,9 +66,9 @@ void cyclical_buffer::dump_tail(const size_t nbytes) {
 }
 
 void cyclical_buffer::fill_gap(const uint8_t* src, const size_t offset) {
-    ENSURE(offset % _psize == 0);
+    assert(offset % _psize == 0);
     auto side = sideof(offset);
-    ENSURE(side != NONE);
+    assert(side != NONE);
     size_t pos = _tail + offset;
     if (_tail > _head && side == LEFT) 
         pos -= rounded_cap() - _tail;
@@ -76,7 +77,7 @@ void cyclical_buffer::fill_gap(const uint8_t* src, const size_t offset) {
 }
 
 void cyclical_buffer::push_head(const uint8_t* src, const size_t offset) {
-    ENSURE(offset % _psize == 0);
+    assert(offset % _psize == 0);
     if (offset >= rounded_cap()) {
         reset(_psize);
         memcpy(_data, src, _psize);

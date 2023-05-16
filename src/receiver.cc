@@ -77,7 +77,8 @@ static receiver_params get_params(int argc, char* argv[]) {
 }
 
 static void bind_socket(const uint16_t port) {
-    VERIFY(socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)); // creating IPv4 UDP socket
+    if (-1 == (socket_fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)))
+        fatal("socket"); // creating IPv4 UDP socket
 
     struct sockaddr_in receiver_address;
     receiver_address.sin_family      = AF_INET; // IPv4
@@ -85,15 +86,16 @@ static void bind_socket(const uint16_t port) {
     receiver_address.sin_port        = htons(port);
 
     // bind the socket to a concrete address
-    CHECK_ERRNO(bind(socket_fd, (struct sockaddr*)&receiver_address, (socklen_t)sizeof(receiver_address)));
+    if (-1 == bind(socket_fd, (struct sockaddr*)&receiver_address, (socklen_t)sizeof(receiver_address)))
+        fatal("bind");
 }
 
 static size_t read_packet(const int socket_fd, struct sockaddr_in* sender_addr, uint8_t* pkt_buf) {
     ssize_t nread;
     socklen_t addr_len = sizeof(*sender_addr);
     nread = recvfrom(socket_fd, pkt_buf, MAX_UDP_PKT_SIZE, 0, (struct sockaddr*)sender_addr, &addr_len);
-    VERIFY(nread);
-    ENSURE((size_t)nread > 2 * sizeof(uint64_t));
+    if (-1 == nread || (size_t)nread <= 2 * sizeof(uint64_t))
+        fatal("nread");
     return nread - 2 * sizeof(uint64_t);
 }
 
@@ -103,11 +105,12 @@ static void cleanup() {
     printer.join();
     if (buf_ptr)
         buf_ptr->~cyclical_buffer();
-    CHECK_ERRNO(close(socket_fd));
+    if (-1 == close(socket_fd))
+        fatal("close");
 }
 
 static void signal_handler(int signum) {
-    eprintln("Received %s. Shutting down...", strsignal(signum));
+    logerr("Received %s. Shutting down...", strsignal(signum));
     cleanup();
     exit(signum);
 }
@@ -151,7 +154,8 @@ static void print_missing(const cyclical_buffer& buf, const uint64_t abs_head, c
         do {
             if (!buf.occupied(i)) {
                 ssize_t nprinted = snprintf(log_buf + len, TOTAL_LOG_LEN, fmt, cur_pkt, abs_tail + i);
-                VERIFY(nprinted);
+                if (-1 == nprinted)
+                    fatal("snprintf");
                 len += (size_t)nprinted;
             }
             i = (i + buf.psize()) % buf.rounded_cap();
@@ -160,7 +164,8 @@ static void print_missing(const cyclical_buffer& buf, const uint64_t abs_head, c
 
     for (size_t i = 0; i < head_offset; i += buf.psize()) {
         ssize_t nprinted = snprintf(log_buf + len, TOTAL_LOG_LEN, fmt, cur_pkt, abs_head + i);
-        VERIFY(nprinted);
+        if (-1 == nprinted)
+            fatal("snprintf");
         len += (size_t)nprinted;
     }
 
@@ -188,7 +193,7 @@ static void run(const receiver_params* params) {
     struct sockaddr_in expected_sender = get_addr(params->src_addr.c_str(), 0);
 
     bind_socket(params->data_port);
-    eprintln("\nListening on port %u...", params->data_port);
+    logerr("\nListening on port %u...", params->data_port);
     cyclical_buffer buf(params->bsize);
     buf_ptr = &buf;
     signal(SIGINT, signal_handler);
@@ -206,22 +211,22 @@ static void run(const receiver_params* params) {
         uint8_t* audio_data     = get_audio_data(pkt_buf);
 
         if (expected_sender.sin_addr.s_addr != cur_sender.sin_addr.s_addr) {
-            eprintln("Expected sender %llu, but got %llu", expected_sender.sin_addr.s_addr, cur_sender.sin_addr.s_addr);
+            logerr("Expected sender %llu, but got %llu", expected_sender.sin_addr.s_addr, cur_sender.sin_addr.s_addr);
             continue;
         }
 
         if (session_id < cur_session) {
-            eprintln("Ignoring old session %llu...", session_id);
+            logerr("Ignoring old session %llu...", session_id);
             continue;
         }
 
         if (buf.psize() > params->bsize) {
-            eprintln("Packet size too large, ignoring session  %llu...", session_id);
+            logerr("Packet size too large, ignoring session  %llu...", session_id);
             continue;
         }
 
         if (session_id > cur_session) {
-            eprintln("New session %llu!", session_id);
+            logerr("New session %llu!", session_id);
             cur_session = session_id;
             abs_head    = byte0 = first_byte_num;
             first_print = true;

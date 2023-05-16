@@ -30,7 +30,8 @@ static size_t readn_blocking(uint8_t* buf, const size_t n) {
     size_t   nleft = n;
     while (nleft) {
         ssize_t res = read(STDIN_FILENO, bpos, nleft);
-        VERIFY(res);
+        if (res == -1)
+            fatal("read");
         if (res == 0)
             break;
         nleft -= res;
@@ -46,7 +47,8 @@ static void send_packet(struct sockaddr_in* dst_addr, const int socket_fd, const
     bufpos = my_memcpy(bufpos, &first_byte_num, sizeof(uint64_t));
     my_memcpy(bufpos, audio_data, psize);
 
-    VERIFY(sendto(socket_fd, buffer, sizeof(buffer), 0, (sockaddr*)dst_addr, sizeof(*dst_addr)));
+    if (-1 == sendto(socket_fd, buffer, sizeof(buffer), 0, (sockaddr*)dst_addr, sizeof(*dst_addr)))
+        fatal("sendto");
 }
 
 static sender_params get_params(int argc, char* argv[]) {
@@ -85,11 +87,12 @@ static sender_params get_params(int argc, char* argv[]) {
 }
 
 static void cleanup() {
-    CHECK_ERRNO(close(socket_fd));
+    if (-1 == close(socket_fd))
+        fatal("close");
 }
 
 static void signal_handler(int signum) {
-    eprintln("Received %s. Shutting down...", strsignal(signum));
+    logerr("Received %s. Shutting down...", strsignal(signum));
     cleanup();
     exit(signum);
 }
@@ -97,7 +100,8 @@ static void signal_handler(int signum) {
 static void run(const sender_params* params) {
     uint8_t audio_data[params->psize];
     struct sockaddr_in dst_addr = get_addr(params->dest_addr.c_str(), params->data_port);
-    VERIFY(socket_fd = socket(PF_INET, SOCK_DGRAM, 0));
+    if (-1 == (socket_fd = socket(PF_INET, SOCK_DGRAM, 0)))
+        fatal("socket");
     signal(SIGINT, signal_handler);
 
     for (size_t nsent = 0;; nsent += params->psize) {
