@@ -9,7 +9,7 @@
 [[noreturn]] void fatal_impl(const char* file, const size_t line, const char* msg) {
     fprintf(stderr, "Error (%s:%zu): %s.", file, line, msg);
     if (errno)
-        fprintf(stderr, "Errno: %s.", strerror(errno));
+        fprintf(stderr, "\nErrno: %s.", strerror(errno));
     fprintf(stderr, "\n");
     exit(errno ? errno : EXIT_FAILURE);
 }
@@ -23,7 +23,7 @@
     va_end(args);
 
     if (errno)
-        fprintf(stderr, ". Errno: %s.\n", strerror(errno));
+        fprintf(stderr, ".\nErrno: %s.\n", strerror(errno));
     else 
         fprintf(stderr, ".\n");
 

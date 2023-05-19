@@ -32,7 +32,7 @@ Pierwsza część polecenia konwertuje plik MP3 na strumień surowych danych (44
 ```
 arecord -t raw -f cd | ./sikradio-sender -a 10.10.11.12 -n "Radio Podcast"
 ```
-Polecenie `arecord` można znaleźć w pakiecie `alsa-utils`.
+Polecenie `arecord` można znaleźć w pakiecie `alsa-common`.
 
 # Część B (odbiornik)
 

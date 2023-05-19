@@ -10,10 +10,38 @@ SET(CMAKE_CXX_FLAGS "-Wall -O2")
 # Find Boost libraries
 find_package(Boost REQUIRED COMPONENTS program_options REQUIRED)
 
-# Add executable for receiver
-add_executable(sikradio-receiver src/receiver.cc src/utils/audio_packet.cc src/utils/cyclical_buffer.cc src/utils/err.cc src/utils/mem.cc src/utils/net.cc)
-target_link_libraries(sikradio-receiver Boost::program_options)
+# # Add executable for receiver
+# add_executable(sikradio-receiver 
+#     src/common/udp_socket.cc
+#     src/common/audio_packet.cc 
+#     src/common/circular_buffer.cc
+#     src/common/err.cc 
+#     src/common/mem.cc 
+#     src/common/net.cc 
+#     src/receiver.cc
+#     src/common/radio_station.cc
+# )
+# target_link_libraries(sikradio-receiver Boost::program_options)
+# target_link_libraries(sikradio-receiver pthread)
 
 # Add executable for sender
-add_executable(sikradio-sender src/sender.cc src/utils/audio_packet.cc src/utils/cyclical_buffer.cc src/utils/err.cc src/utils/mem.cc src/utils/net.cc)
+add_executable(sikradio-sender
+    # src/common/udp_socket.cc
+    # src/common/audio_packet.cc 
+    # src/common/circular_buffer.cc 
+    # src/common/err.cc 
+    # src/common/mem.cc 
+    # src/common/net.cc 
+    src/common/err.cc
+    src/common/except.cc
+    src/common/net.cc
+    src/common/worker.cc
+    src/common/udp_socket.cc
+    src/common/datagram.cc
+    src/common/circular_buffer.cc
+    src/common/radio_station.cc
+    src/sender/audio_sender.cc
+    src/sender/sender.cc
+)
 target_link_libraries(sikradio-sender Boost::program_options)
+target_link_libraries(sikradio-sender pthread)

@@ -4,7 +4,7 @@ LDFLAGS = -lboost_program_options -pthread
 INCLUDES = -I/usr/include/boost
 
 # List of source files
-COMMON_SOURCES := $(wildcard src/utils/*.cc)
+COMMON_SOURCES := $(wildcard src/common/*.cc)
 SENDER_SOURCES := src/sender.cc $(COMMON_SOURCES)
 RECEIVER_SOURCES := src/receiver.cc $(COMMON_SOURCES)
 
