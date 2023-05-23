@@ -1,9 +1,12 @@
 #pragma once
 
+#include <unistd.h>
 #include <csignal>
 
 #include <optional>
 #include <chrono>
+
+#include "err.hh"
 
 static inline void send_msg(const int fd) {
     char msg_buf[1] = {42}; // contents not important

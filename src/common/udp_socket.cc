@@ -6,16 +6,16 @@
 
 #define TTL_VALUE 4
 
-UdpSocket::UdpSocket(): mcast_recv_enabled(false) {
+UdpSocket::UdpSocket(): _mcast_recv_enabled(false), _connected(false) {
     if (-1 == (_fd = socket(AF_INET, SOCK_DGRAM, 0)))
         fatal("socket");
     set_local_port(0);
 }
 
 UdpSocket::~UdpSocket() {
-    if (mcast_recv_enabled)
+    if (_mcast_recv_enabled)
         disable_mcast_recv();
-    if (-1 == shutdown(_fd, SHUT_RDWR))
+    if (_connected && -1 == shutdown(_fd, SHUT_RDWR))
         fatal("shutdown");
     if (-1 == close(_fd))
         fatal("close");

@@ -6,7 +6,8 @@
 
 ControllerWorker::ControllerWorker(
     const volatile sig_atomic_t& running, 
-    const in_port_t data_port,
+    const sockaddr_in& data_addr,
+    const in_port_t ctrl_port,
     const std::string& station_name,
     const std::shared_ptr<RetransmitterWorker> retransmitter
 )
@@ -14,7 +15,9 @@ ControllerWorker::ControllerWorker(
     , _station_name(station_name)
     , _retransmitter(retransmitter)
 {
-    //TODO: sockety xd
+    _ctrl_socket.bind_local_port(ctrl_port);
+    _data_socket.set_broadcast();
+    _data_socket.connect(data_addr);
 }
 
 void ControllerWorker::handle_lookup(const sockaddr_in& receiver_addr) {

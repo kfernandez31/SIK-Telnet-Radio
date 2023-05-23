@@ -7,7 +7,7 @@ private:
     int _fd;
     void set_opt(const int proto, const int type, void* val, const size_t val_size);
     void set_local_port(const in_port_t port);
-    bool mcast_recv_enabled;
+    bool _mcast_recv_enabled, _connected;
     ip_mreq _ipmreq;
 public:
     sockaddr_in local_addr, conn_addr;

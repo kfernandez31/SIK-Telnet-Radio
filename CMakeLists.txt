@@ -26,12 +26,6 @@ find_package(Boost REQUIRED COMPONENTS program_options REQUIRED)
 
 # Add executable for sender
 add_executable(sikradio-sender
-    # src/common/udp_socket.cc
-    # src/common/audio_packet.cc 
-    # src/common/circular_buffer.cc 
-    # src/common/err.cc 
-    # src/common/mem.cc 
-    # src/common/net.cc 
     src/common/err.cc
     src/common/except.cc
     src/common/net.cc
@@ -41,6 +35,8 @@ add_executable(sikradio-sender
     src/common/circular_buffer.cc
     src/common/radio_station.cc
     src/sender/audio_sender.cc
+    src/sender/retransmitter.cc
+    src/sender/controller.cc
     src/sender/sender.cc
 )
 target_link_libraries(sikradio-sender Boost::program_options)

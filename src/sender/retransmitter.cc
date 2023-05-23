@@ -10,17 +10,19 @@ RetransmitterWorker::RetransmitterWorker(
     const volatile sig_atomic_t& running, 
     const uint64_t session_id,
     const std::chrono::milliseconds rtime,
-    const in_port_t data_port,
+    const sockaddr_in& data_addr,
     const SyncedPtr<CircularBuffer>& packet_cache,
     const SyncedPtr<std::queue<RexmitRequest>>& job_queue
 )
     : Worker(running)
-    , _wait(false)
-    , _session_id(session_id)
-    , _rtime(rtime)
     , _packet_cache(packet_cache)
     , _job_queue(job_queue)
+    , _session_id(session_id)
+    , _rtime(rtime)
+    , _wait(false)
 {
+    _data_socket.set_broadcast();
+    _data_socket.connect(data_addr);
     //TODO: init socket
 }
 
@@ -67,7 +69,7 @@ void RetransmitterWorker::run() {
         size_t new_jobs;
         {
             auto lock = _job_queue.lock();
-            _job_queue_cv.wait(lock, [&] { return !running && !wait; });
+            _job_queue_cv.wait(lock, [&] { return !running && !_wait; });
             if (!running)
                 return;
             new_jobs = _job_queue->size();

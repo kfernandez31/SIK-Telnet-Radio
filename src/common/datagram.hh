@@ -10,9 +10,6 @@
 #include <string>
 #include <vector>
 
-
-//TODO: pamiętać, że buforki +1
-
 #define LOOKUP_REQUEST_PREFIX "ZERO_SEVEN_COME_IN"
 #define LOOKUP_REPLY_PREFIX   "BOREWICZ_HERE"
 #define REXMIT_REQUEST_PREFIX "LOUDER_PLEASE"

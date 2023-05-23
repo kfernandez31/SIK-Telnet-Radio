@@ -22,7 +22,8 @@ public:
     ControllerWorker() = delete;
     ControllerWorker(
         const volatile sig_atomic_t& running, 
-        const in_port_t data_port,
+        const sockaddr_in& data_addr,
+        const in_port_t ctrl_port,
         const std::string& station_name,
         const std::shared_ptr<RetransmitterWorker> retransmitter
     );
