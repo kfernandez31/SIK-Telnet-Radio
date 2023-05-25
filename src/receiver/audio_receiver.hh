@@ -8,11 +8,10 @@
 #include "../common/radio_station.hh"
 #include "../common/ptr.hh"
 
+#include "poll.h"
 #include <cstddef>
 
 #define NUM_POLLFDS 4
-
-//TODO: jak dojdzie PIERWSZA stacja, to na nią przełączyć!
 
 struct AudioReceiverWorker : public Worker {
 private:
@@ -24,7 +23,6 @@ private:
     pollfd _poll_fds[NUM_POLLFDS];
 
     AudioPacket read_packet();
-    void AudioReceiverWorker::try_write_packet(const AudioPacket& packet, uint64_t& abs_head);
 public:
     AudioReceiverWorker() = delete;
     ~AudioReceiverWorker();

@@ -14,9 +14,7 @@ public:
     void reset(const size_t psize, const uint64_t abs_head_);
 
     void dump_tail(const size_t nbytes);
-    void fill_gap(const AudioPacket& packet);
-    void try_push_head(const AudioPacket& packet);
-    void try_put(const AudioPacket& packet);
+    void try_put(const AudioPacket& packet); // the most used method, "push"
     size_t cnt_upto_gap() const;
     size_t range() const;
     size_t capacity() const;
@@ -37,4 +35,6 @@ private:
 
     enum side  { NONE, LEFT, RIGHT, };
     side sideof(const size_t idx) const;
+    void fill_gap(const AudioPacket& packet);
+    void try_push_head(const AudioPacket& packet);
 };

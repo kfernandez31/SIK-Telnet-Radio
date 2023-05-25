@@ -66,8 +66,8 @@ struct SenderParams {
         if (fsize < 1)
             throw RadioException("FSIZE must be positive");
         if (!RadioStation::is_valid_name(name))
-            throw RadioException("invalid NAME");
+            throw RadioException("NAME is invalid");
         if (!is_valid_mcast_addr(mcast_addr.c_str()))
-            throw RadioException("invalid MCAST_ADDR");
+            throw RadioException("MCAST_ADDR is not a valid multicast address");
     }
 };

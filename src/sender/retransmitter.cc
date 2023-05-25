@@ -23,7 +23,6 @@ RetransmitterWorker::RetransmitterWorker(
 {
     _data_socket.set_broadcast();
     _data_socket.connect(data_addr);
-    //TODO: init socket
 }
 
 void RetransmitterWorker::handle_retransmission(RexmitRequest& req) {

@@ -58,6 +58,7 @@ void AudioSenderWorker::run() {
 
         if (poll_fds[STDIN_FILENO].revents & POLLIN) {
             ssize_t res = read(STDIN_FILENO, audio_buf + nread, _psize - nread);
+            poll_fds[STDIN_FILENO].revents = 0;
             if (res == -1)
                 fatal("read");
             if (res == 0)
@@ -69,8 +70,11 @@ void AudioSenderWorker::run() {
                 memset(audio_buf, 0, sizeof(audio_buf));
                 nread = 0;
             }
+
         } 
-        else if (poll_fds[MAIN].revents & POLLIN)
+        if (poll_fds[MAIN].revents & POLLIN) {
+            poll_fds[MAIN].revents = 0;
             break; // we've been signalled to finish
+        }
     }
 }

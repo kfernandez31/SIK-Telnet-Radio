@@ -1,7 +1,7 @@
 #include "lookup_sender.hh"
 
-#include "common/net.hh"
-#include "common/datagram.hh"
+#include "../common/net.hh"
+#include "../common/datagram.hh"
 
 #include <thread>
 #include <chrono>

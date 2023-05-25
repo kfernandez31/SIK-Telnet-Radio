@@ -11,6 +11,8 @@
 #include <string>
 #include <optional>
 
+// TODO: maintain a set of clients, poll them
+
 struct UiMenuWorker : public Worker {
 private:
     TcpSocket _socket;

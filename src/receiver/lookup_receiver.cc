@@ -9,12 +9,14 @@ LookupReceiverWorker::LookupReceiverWorker(
     const volatile sig_atomic_t& running, 
     const SyncedPtr<StationSet>& stations,
     const SyncedPtr<StationSet::iterator>& current_station,
-    const std::optional<std::string> prio_station_name
+    const std::optional<std::string> prio_station_name,
+    const int audio_receiver_fd
 ) 
     : Worker(running)
     , _stations(stations)
     , _current_station(current_station) 
     , _prio_station_name(prio_station_name)
+    , _audio_receiver_fd(audio_receiver_fd)
 {
     //TODO:
     // socket.set_reuseaddr();
@@ -35,11 +37,11 @@ void LookupReceiverWorker::run() {
             auto stations_lock = _stations.lock();
             auto it = _stations->find(station);
             if (it == _stations->end()) {
-                logerr("New station: %s", station.name);
+                logerr("New station: %s", station.name.c_str());
             } else
                 _stations->erase(it);
                 
-            logerr("Got lookup reply from station: %s", station.name);
+            logerr("Got lookup reply from station: %s", station.name.c_str());
             auto inserted_it = _stations->insert(station).first;
 
             if (_stations->size() == 1 || _prio_station_name == station.name) {
@@ -50,4 +52,9 @@ void LookupReceiverWorker::run() {
             logerr("Malformed lookup reply: %s", e.what());
         }
     }
+}
+
+LookupReceiverWorker::~LookupReceiverWorker() {
+    if (-1 == close(_audio_receiver_fd))
+        fatal("close");
 }

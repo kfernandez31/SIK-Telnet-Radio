@@ -14,6 +14,15 @@ static inline void send_msg(const int fd) {
         fatal("write");
 }
 
+static inline void order_worker_termination(int* fd) {
+    if (-1 != *fd) {
+        send_msg(*fd);
+        if (-1 == close(*fd))
+            fatal("close");
+        *fd = -1;
+    }
+}
+
 class Worker {
 protected:
     const volatile sig_atomic_t& running;

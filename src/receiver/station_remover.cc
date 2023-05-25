@@ -26,10 +26,8 @@ void StationRemoverWorker::run() {
         auto current_station_lock = _current_station.lock();
         for (auto it = _stations->begin(); it != _stations->end(); ) {
             if (steady_clock::now() - it->last_reply > seconds(REMOVAL_THRESHOLD_SECS)) {
-                if (it == *_current_station) {
+                if (it == *_current_station)
                     reset_current_station();
-                    ++it;
-                }
                 it = _stations->erase(it);
             } else
                 ++it;

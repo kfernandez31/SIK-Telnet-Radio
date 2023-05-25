@@ -33,7 +33,7 @@ AudioReceiverWorker::AudioReceiverWorker(
 {
     _poll_fds[MENU].fd    = menu_fd;
     _poll_fds[PRINTER].fd = printer_fd;
-    _poll_fds[LOOKUP].fd  = lookup_fd; //TODO: ogarnąć to w lookupie + close w destruktorze
+    _poll_fds[LOOKUP].fd  = lookup_fd;
     //TODO: jakieś ustawienia socketa
     _poll_fds[NETWORK].fd = _data_socket.fd();
     for (size_t i = 0; i < NUM_POLLFDS; ++i) {
@@ -49,8 +49,6 @@ AudioReceiverWorker::~AudioReceiverWorker() {
         fatal("close");
 }
 
-
-//TODO: ziom od lookupu
 AudioPacket AudioReceiverWorker::read_packet() {
     auto stations_lock        = _stations.lock();
     auto current_station_lock = _current_station.lock();
@@ -74,18 +72,32 @@ void AudioReceiverWorker::run() {
         if (poll_status == -1)
             fatal("poll");
 
-        if (_poll_fds[MENU].revents & POLLIN || _poll_fds[LOOKUP].revents & POLLIN) {
-            if (!running) // the parent thread has signaled us to stop
+        if (_poll_fds[MENU].revents & POLLIN) {
+            _poll_fds[MENU].revents = 0;
+            if (!running) // we have been signalled to stop
                 break;
-            // otherwise, switch to the new station and reset variables
-            _poll_fds[NETWORK].fd = (*_current_station)->data_socket.fd();
+            // if not, switch to the new station and reset variables
+            _poll_fds[MENU].fd = (*_current_station)->data_socket.fd();
             cur_session = NO_SESSION;
-        } else if (_poll_fds[PRINTER].revents & POLLIN) {
-            // if the _printer has signalled us, it detected packet loss
+        }
+        if (_poll_fds[LOOKUP].revents & POLLIN) {
+            _poll_fds[LOOKUP].revents = 0;
+            if (!running) // we have been signalled to stop
+                break;
+            // if not, switch to the new station and reset variables
+            _poll_fds[LOOKUP].fd = (*_current_station)->data_socket.fd();
             cur_session = NO_SESSION;
-        } else if (_poll_fds[NETWORK].revents & POLLIN) {
+        }
+        // packet loss detected
+        if (_poll_fds[PRINTER].revents & POLLIN) {
+            cur_session = NO_SESSION;
+            _poll_fds[PRINTER].revents = 0;
+        }
+        // got a new packet
+        if (_poll_fds[NETWORK].revents & POLLIN) {
             try {
                 AudioPacket packet = read_packet();
+                _poll_fds[NETWORK].revents = 0;
 
                 if (packet.session_id < cur_session) {
                     logerr("Ignoring old session %llu...", packet.session_id);

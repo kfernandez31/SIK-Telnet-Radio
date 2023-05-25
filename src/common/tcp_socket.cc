@@ -10,7 +10,7 @@
 #include <iostream>
 
 TcpSocket::TcpSocket(const in_port_t port, const size_t buf_size, const size_t queue_len) 
-    : _buf_size(buf_size), _queue_len(queue_len), _in(*this), _out(*this), _conn_fd(-1)
+    : _conn_fd(-1), _buf_size(buf_size), _queue_len(queue_len), _in(*this), _out(*this)
 {
     if (-1 == (_fd = socket(PF_INET, SOCK_STREAM, 0)))
         fatal("socket");
@@ -94,23 +94,10 @@ bool TcpSocket::InStream::eof() {
     return ss.eof() && !read();
 }
 
-template<typename T>
-TcpSocket::InStream& TcpSocket::InStream::operator>>(const T& val) {
-    if (!eof())
-        ss >> val;
-    return *this;
-}
-
 //----------------------------OutStream------------------------------------
 
 TcpSocket::OutStream::OutStream(const TcpSocket& socket) : socket(socket) {
     ss.str("");
-}
-
-template<typename T>
-TcpSocket::OutStream& TcpSocket::OutStream::operator<<(const T& val) {
-    ss << val;
-    return *this;
 }
 
 TcpSocket::OutStream& TcpSocket::OutStream::operator<<(OutStream& (*f)(OutStream&)) {

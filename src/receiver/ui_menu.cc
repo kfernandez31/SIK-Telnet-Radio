@@ -22,7 +22,7 @@ UiMenuWorker::UiMenuWorker(
     const int audio_receiver_fd
 )
     : Worker(running)
-    , _socket(port, 42, 42) //TODO: change these to some sensible values
+    , _socket(port)
     , _prio_station_name(prio_station_name)
     , _stations(stations)
     , _current_station(current_station)
@@ -52,7 +52,7 @@ void UiMenuWorker::report_station_change() {
 }
 
 void UiMenuWorker::run() {
-    while (running) {
+    while (running && !_socket.in().eof()) {
         std::string cmd_buf;
         try {
             _socket.in().getline(cmd_buf);

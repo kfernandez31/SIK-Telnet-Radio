@@ -15,10 +15,10 @@ RexmitSenderWorker::RexmitSenderWorker(
     const SyncedPtr<StationSet::iterator>& current_station
 )
     : Worker(running)
-    , _rtime(rtime)
     , _buffer(buffer)
     , _stations(stations)
     , _current_station(current_station) 
+    , _rtime(rtime)
 {
     //TODO: socket
 }

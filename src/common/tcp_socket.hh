@@ -6,10 +6,11 @@
 
 #include <memory>
 #include <sstream>
+#include <string>
 
 struct TcpSocket {
 public:
-    TcpSocket(const in_port_t port, const size_t buf_size, const size_t queue_len);
+    TcpSocket(const in_port_t port, const size_t buf_size = DEFAULT_BUF_SIZE, const size_t queue_len = DEFAULT_QUEUE_LEN);
     ~TcpSocket();
 
     void listen();
@@ -24,7 +25,11 @@ public:
         InStream(const TcpSocket& socket);
 
         template<typename T>
-        InStream& operator>>(const T& val);
+        InStream& operator>>(const T& val) {
+            if (!eof())
+                ss >> val;
+            return *this;
+        }
 
         InStream& getline(std::string& buf);
         bool eof();
@@ -39,8 +44,10 @@ public:
         OutStream(const TcpSocket& socket);
 
         template<typename T>
-        OutStream& operator<<(const T& val);
-
+        OutStream& operator<<(const T& val) {
+            ss << val;
+            return *this;
+        }
         OutStream& operator<<(OutStream& (*f)(OutStream&));
 
         void write();
@@ -57,4 +64,7 @@ private:
     std::unique_ptr<char[]> _buf;
     InStream _in;
     OutStream _out;
+
+    static const size_t DEFAULT_BUF_SIZE = 1024;
+    static const size_t DEFAULT_QUEUE_LEN = 20;
 };
