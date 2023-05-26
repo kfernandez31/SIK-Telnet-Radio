@@ -41,16 +41,16 @@ SENDER_SRCS := src/common/err.cc \
 RECEIVER_TARGET := sikradio-receiver
 SENDER_TARGET := sikradio-sender
 
-.PHONY: all receiver sender clean
-
 all: sikradio-sender sikradio-receiver
 
-receiver:
-    $(CXX) $(CXXFLAGS) $(INCLUDE_DIRS) $(RECEIVER_SRCS) -o $(RECEIVER_TARGET) $(LDFLAGS)
+sikradio-receiver:
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(RECEIVER_SRCS) -o $(RECEIVER_TARGET) $(LDFLAGS)
 
-sender:
-    $(CXX) $(CXXFLAGS) $(INCLUDE_DIRS) $(SENDER_SRCS) -o $(SENDER_TARGET) $(LDFLAGS)
+sikradio-sender:
+	$(CXX) $(CXXFLAGS) $(INCLUDES) $(SENDER_SRCS) -o $(SENDER_TARGET) $(LDFLAGS)
+
+%.o: %.cc
+	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 clean:
-    rm -f $(RECEIVER_TARGET) $(SENDER_TARGET)
-
+	rm -f $(RECEIVER_TARGET) $(SENDER_TARGET)
