@@ -2,6 +2,7 @@
 #include "audio_sender.hh"
 #include "controller.hh"
 #include "../common/circular_buffer.hh"
+#include "../common/event_pipe.hh"
 
 #include <thread>
 
@@ -10,19 +11,16 @@
 #define AUDIO_SENDER  2
 #define NUM_WORKERS   3
 
-static int sender_pipe[2];
 static volatile sig_atomic_t running = true;
+static SyncedPtr<EventPipe> current_event = SyncedPtr<EventPipe>::make();
 
 static void sigint_handler(int signum) {
     logerr("Received %s. Shutting down...", strsignal(signum));
     running = false;
-    order_worker_termination(sender_pipe + STDOUT_FILENO);
+    current_event->put_event(EventPipe::EventType::SIG_INT);
 }
 
 int main(int argc, char* argv[]) {
-    if (-1 == pipe(sender_pipe))
-        fatal("pipe");
-    
     struct sigaction sa;
     sa.sa_handler = sigint_handler;
     sigemptyset(&sa.sa_mask);
@@ -44,16 +42,16 @@ int main(int argc, char* argv[]) {
     std::thread worker_threads[NUM_WORKERS];
 
     workers[RETRANSMITTER] = std::make_shared<RetransmitterWorker>(
-        running, params.session_id, params.rtime, data_addr, packet_cache, 
-        rexmit_job_queue
+        running, packet_cache, rexmit_job_queue,
+        params.session_id, params.rtime
     );
     workers[CONTROLLER] = std::make_shared<ControllerWorker>(
         running, data_addr, params.ctrl_port, params.name, 
         std::static_pointer_cast<RetransmitterWorker>(workers[RETRANSMITTER])
     );
     workers[AUDIO_SENDER] = std::make_shared<AudioSenderWorker>(
-        running, data_addr, params.psize, params.session_id, packet_cache, 
-        sender_pipe[STDIN_FILENO]
+        running, data_addr, packet_cache, current_event,
+        params.psize, params.session_id
     );
 
     for (int i = 0; i < NUM_WORKERS; ++i) 

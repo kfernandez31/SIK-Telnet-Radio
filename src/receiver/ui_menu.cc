@@ -15,40 +15,33 @@ static const char* CHOSEN_STATION_PREFIX = " > ";
 
 UiMenuWorker::UiMenuWorker(
     const volatile sig_atomic_t& running, 
-    const in_port_t port, 
-    const std::optional<std::string> prio_station_name,
     const SyncedPtr<StationSet>& stations,
     const SyncedPtr<StationSet::iterator>& current_station,
-    const int audio_receiver_fd
+    const SyncedPtr<EventPipe>& current_event,
+    const in_port_t port, 
+    const std::optional<std::string> prio_station_name
 )
     : Worker(running)
     , _socket(port)
-    , _prio_station_name(prio_station_name)
     , _stations(stations)
     , _current_station(current_station)
-    , _audio_receiver_fd(audio_receiver_fd)
+    , _current_event(current_event)
+    , _prio_station_name(prio_station_name)
     {}
 
-UiMenuWorker::~UiMenuWorker() {
-    if (-1 == close(_audio_receiver_fd))
-        fatal("close");
-}
-
-void UiMenuWorker::apply_command(const cmd_t cmd) {
+void UiMenuWorker::apply_command(const Command cmd) {
     auto stations_lock        = _stations.lock();
     auto current_station_lock = _current_station.lock();
-    if (cmd == cmd_t::MOVE_UP && *_current_station != _stations->begin()) {
+    if (cmd == Command::MOVE_UP && *_current_station != _stations->begin()) {
         --*_current_station;
-        report_station_change();
+        auto event_lock = _current_event.lock();
+        _current_event->put_event(EventPipe::EventType::STATION_CHANGE);
     }
-    else if (cmd == cmd_t::MOVE_DOWN && *_current_station != std::prev(_stations->end())) {
+    else if (cmd == Command::MOVE_DOWN && *_current_station != std::prev(_stations->end())) {
         ++*_current_station;
-        report_station_change();
+        auto event_lock = _current_event.lock();
+        _current_event->put_event(EventPipe::EventType::STATION_CHANGE);
     }
-}
-
-void UiMenuWorker::report_station_change() {
-    send_msg(_audio_receiver_fd);
 }
 
 void UiMenuWorker::run() {
@@ -61,9 +54,9 @@ void UiMenuWorker::run() {
         }
 
         if (cmd_buf == CMD_UP)
-            apply_command(cmd_t::MOVE_UP);
+            apply_command(Command::MOVE_UP);
         else if (cmd_buf == CMD_DOWN)
-            apply_command(cmd_t::MOVE_DOWN);
+            apply_command(Command::MOVE_DOWN);
         else
             logerr("Unknown command");   
         

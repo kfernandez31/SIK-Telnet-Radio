@@ -11,23 +11,25 @@
 #define STATION_NAME_MAX_LEN 64
 
 struct RadioStation {
-    UdpSocket data_socket;
-    std::string address, name;
-    in_port_t port;
-    sockaddr_in data_addr, ctrl_addr;
+    sockaddr_in sender_addr;
+    std::string mcast_addr;
+    in_port_t data_port;
+    std::string name;
     std::chrono::steady_clock::time_point last_reply;
-
-    static bool is_valid_name(const std::string& name);
-
+    
     RadioStation(
-        const std::string& name, 
-        const std::string& address, 
-        const in_port_t& port, 
-        const sockaddr_in& data_addr,
-        const sockaddr_in& ctrl_addr
+        const sockaddr_in& sender_addr,
+        const std::string& mcast_addr, 
+        const in_port_t& data_port,
+        const std::string& name 
     );
+
+    sockaddr_in get_data_addr() const;
+    sockaddr_in get_ctrl_addr() const;
     
     bool operator==(const RadioStation& other) const;
+
+    static bool is_valid_name(const std::string& name);
 
     struct cmp {
         bool operator()(const RadioStation& a, const RadioStation& b) const;

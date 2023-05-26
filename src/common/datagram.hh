@@ -55,7 +55,7 @@ struct RexmitRequest {
 };
 
 struct AudioPacket {
-    AudioPacket(const char* buf);
+    AudioPacket(const char* buf, const size_t psize);
     AudioPacket(const uint64_t first_byte_num, const uint64_t session_id, const char* audio_data_buf, const size_t psize);
 
     std::vector<char> bytes;

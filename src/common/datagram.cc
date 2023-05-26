@@ -78,15 +78,14 @@ std::string RexmitRequest::to_str() const {
 //----------------------------AudioPacket------------------------------------
 
 // used for receiving
-AudioPacket::AudioPacket(const char* buf)
+AudioPacket::AudioPacket(const char* buf, const size_t psize)
     : session_id(ntohll(((uint64_t*)buf)[0]))
     , first_byte_num(ntohll(((uint64_t*)buf)[1]))
 {
     bytes.push_back(session_id);
     bytes.push_back(first_byte_num);
     const char* audio_bytes = buf + 2 * sizeof(uint64_t);
-    size_t psize_ = strlen(audio_bytes);
-    for (size_t i = 0; i < psize_; ++i)
+    for (size_t i = 0; i < psize; ++i)
         bytes.push_back(audio_bytes[i]);
 }
 

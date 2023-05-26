@@ -9,21 +9,19 @@
 
 RexmitSenderWorker::RexmitSenderWorker(
     const volatile sig_atomic_t& running, 
-    const std::chrono::milliseconds rtime,
     const SyncedPtr<CircularBuffer>& buffer,
     const SyncedPtr<StationSet>& stations,
-    const SyncedPtr<StationSet::iterator>& current_station
+    const SyncedPtr<StationSet::iterator>& current_station,
+    const std::chrono::milliseconds rtime
 )
     : Worker(running)
     , _buffer(buffer)
     , _stations(stations)
     , _current_station(current_station) 
     , _rtime(rtime)
-{
-    //TODO: socket
-}
+    {}
 
-
+// This approach is much more efficient than the one described in the task description
 void RexmitSenderWorker::order_retransmission() {
     auto buffer_lock = _buffer.lock();
     size_t i = _buffer->tail();
@@ -36,12 +34,10 @@ void RexmitSenderWorker::order_retransmission() {
     RexmitRequest request(packet_ids);
     std::string request_str = request.to_str();
 
-    auto stations_lock        = _stations.lock();
-    auto current_station_lock = _current_station.lock();
-    _ctrl_socket.sendto(request_str.c_str(), request_str.length(), (*_current_station)->ctrl_addr);
+    auto lock = _current_station.lock();
+    _ctrl_socket.sendto(request_str.c_str(), request_str.length(), (*_current_station)->get_ctrl_addr());
 }
 
-// This approach is much more efficient than the one described in the task description
 void RexmitSenderWorker::run() {
     std::optional<std::chrono::steady_clock::time_point> prev_rexmit_time;
     while (running) {

@@ -8,12 +8,12 @@
 struct LookupSenderWorker : public Worker {
 private:
     UdpSocket _socket;
+    sockaddr_in _discover_addr;
 public:
     LookupSenderWorker() = delete;
     LookupSenderWorker(
         const volatile sig_atomic_t& running,
-        const in_port_t ctrl_port, 
-        const std::string& discover_addr_str
+        const sockaddr_in& discover_addr
     );
     void run() override;
 };

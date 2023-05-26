@@ -8,11 +8,10 @@
 
 RetransmitterWorker::RetransmitterWorker(
     const volatile sig_atomic_t& running, 
-    const uint64_t session_id,
-    const std::chrono::milliseconds rtime,
-    const sockaddr_in& data_addr,
     const SyncedPtr<CircularBuffer>& packet_cache,
-    const SyncedPtr<std::queue<RexmitRequest>>& job_queue
+    const SyncedPtr<std::queue<RexmitRequest>>& job_queue,
+    const uint64_t session_id,
+    const std::chrono::milliseconds rtime
 )
     : Worker(running)
     , _packet_cache(packet_cache)
@@ -20,10 +19,7 @@ RetransmitterWorker::RetransmitterWorker(
     , _session_id(session_id)
     , _rtime(rtime)
     , _wait(false)
-{
-    _data_socket.set_broadcast();
-    _data_socket.connect(data_addr);
-}
+    {}
 
 void RetransmitterWorker::handle_retransmission(RexmitRequest& req) {
     char pkt_buf[TOTAL_PSIZE(_packet_cache->psize())];

@@ -5,34 +5,42 @@
 #include <chrono>
 #include <netinet/in.h>
 
+#include "net.hh"
+
 RadioStation::RadioStation(
-    const std::string& name, 
-    const std::string& address, 
-    const in_port_t& port, 
-    const sockaddr_in& data_addr,
-    const sockaddr_in& ctrl_addr
-) : address(address)
-  , port(port)
-  , data_addr(data_addr)
-  , ctrl_addr(ctrl_addr)
-  , last_reply(std::chrono::steady_clock::now()) 
+    const sockaddr_in& sender_addr,
+    const std::string& mcast_addr, 
+    const in_port_t& data_port,
+    const std::string& name 
+) 
+    : sender_addr(sender_addr)
+    , mcast_addr(mcast_addr)
+    , data_port(data_port)
+    , name(name)
+    , last_reply(std::chrono::steady_clock::now()) 
 {
-    //TODO: init socket
     if (!is_valid_name(name))
         throw RadioException("Invalid name");
-    this->name = name;
+}
+
+sockaddr_in RadioStation::get_data_addr() const {
+    return get_addr(mcast_addr.c_str(), data_port);
+}
+
+sockaddr_in RadioStation::get_ctrl_addr() const {
+    return get_addr(mcast_addr.c_str(), ntohs(sender_addr.sin_port));
 }
 
 bool RadioStation::operator==(const RadioStation& other) const {
-    return name == other.name && address == other.address && port == other.port;
+    return name == other.name && sender_addr == other.sender_addr && data_port == other.data_port;
 }
 
 bool RadioStation::cmp::operator()(const RadioStation& a, const RadioStation& b) const {
     if (a.name != b.name)
         return a.name < b.name;
-    if (a.address != b.address)
-        return a.address < b.address;
-    return a.port < b.port;
+    if (a.data_port != b.data_port)
+        return a.data_port < b.data_port;
+    return a.sender_addr != b.sender_addr;
 }
 
 bool RadioStation::is_valid_name(const std::string& name) {

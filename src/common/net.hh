@@ -10,4 +10,3 @@ bool operator!=(const sockaddr_in& a, const sockaddr_in& b);
 
 sockaddr_in get_addr(const char* host, const in_port_t port);
 bool is_valid_mcast_addr(const char* str);
-bool is_valid_bcast_addr(const char* str);

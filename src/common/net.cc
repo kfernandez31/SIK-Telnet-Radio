@@ -37,9 +37,3 @@ bool is_valid_mcast_addr(const char* str) {
     int result = inet_pton(AF_INET, str, &addr);
     return result == 1 && IN_MULTICAST(ntohl(addr.s_addr));
 }
-
-bool is_valid_bcast_addr(const char* str) {
-    struct in_addr addr;
-    int result = inet_pton(AF_INET, str, &addr);
-    return result == 1 && (addr.s_addr == INADDR_BROADCAST);
-}

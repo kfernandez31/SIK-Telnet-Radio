@@ -3,7 +3,7 @@
 #include "../common/worker.hh"
 #include "../common/circular_buffer.hh"
 #include "../common/udp_socket.hh"
-#include "../common/ptr.hh"
+#include "../common/synced_ptr.hh"
 
 #include <netinet/in.h>
 #include <cstddef>
@@ -25,14 +25,13 @@ private:
 
     void handle_retransmission(RexmitRequest& req);
 public:
-    //RetransmitterWorker() = delete;
+    RetransmitterWorker() = delete;
     RetransmitterWorker(
         const volatile sig_atomic_t& running, 
-        const uint64_t session_id,
-        const std::chrono::milliseconds rtime,
-        const sockaddr_in& data_addr,
         const SyncedPtr<CircularBuffer>& packet_cache,
-        const SyncedPtr<std::queue<RexmitRequest>>& job_queue
+        const SyncedPtr<std::queue<RexmitRequest>>& job_queue,
+        const uint64_t session_id,
+        const std::chrono::milliseconds rtime
     );
 
     void emplace_job(const char* buf);

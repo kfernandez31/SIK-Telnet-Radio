@@ -15,16 +15,14 @@ ControllerWorker::ControllerWorker(
     , _station_name(station_name)
     , _retransmitter(retransmitter)
 {
-    _ctrl_socket.bind_local_port(ctrl_port);
-    _data_socket.set_broadcast();
-    _data_socket.connect(data_addr);
+    _ctrl_socket.bind(ctrl_port);
 }
 
 void ControllerWorker::handle_lookup(const sockaddr_in& receiver_addr) {
     try {
         LookupReply reply(inet_ntoa(_data_socket.conn_addr.sin_addr), _data_port, _station_name);
         std::string reply_str = reply.to_str(); 
-        _data_socket.sendto(reply_str.c_str(), reply_str.size(), receiver_addr);
+        _ctrl_socket.sendto(reply_str.c_str(), reply_str.size(), receiver_addr);
     } catch (const std::exception& e) {
         logerr("Malformed lookup reply: %s", e.what());
     }

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "../common/worker.hh"
-#include "../common/ptr.hh"
+#include "../common/synced_ptr.hh"
 #include "../common/circular_buffer.hh"
 #include "../common/radio_station.hh"
 
@@ -20,10 +20,10 @@ public:
     RexmitSenderWorker() = delete;
     RexmitSenderWorker(
         const volatile sig_atomic_t& running, 
-        const std::chrono::milliseconds rtime,
         const SyncedPtr<CircularBuffer>& buffer,
         const SyncedPtr<StationSet>& stations,
-        const SyncedPtr<StationSet::iterator>& current_station
+        const SyncedPtr<StationSet::iterator>& current_station,
+        const std::chrono::milliseconds rtime
     );
 
     void run() override;

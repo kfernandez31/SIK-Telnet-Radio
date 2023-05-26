@@ -1,6 +1,7 @@
 #include "station_remover.hh"
 
 #include <thread>
+#include <algorithm>
 
 #define REMOVAL_THRESHOLD_SECS 20
 #define REMOVAL_FREQ_MILLIS    500 //TODO: good enough?
@@ -11,12 +12,14 @@ StationRemoverWorker::StationRemoverWorker(
     const volatile sig_atomic_t& running, 
     const SyncedPtr<StationSet>& stations,
     const SyncedPtr<StationSet::iterator>& current_station,
-    std::optional<std::string> _prio_station_name
+    const SyncedPtr<EventPipe>& current_event,
+    std::optional<std::string> prio_station_name
 ) 
     : Worker(running)
     , _stations(stations)
     , _current_station(current_station) 
-    , _prio_station_name(_prio_station_name)
+    , _current_event(current_event)
+    , _prio_station_name(prio_station_name)
     {}
 
 void StationRemoverWorker::run() {
@@ -37,19 +40,24 @@ void StationRemoverWorker::run() {
 
 // this should be called under a mutex lock
 void StationRemoverWorker::reset_current_station() {
+    StationSet::iterator new_station = _stations->end();
+
     if (_prio_station_name) {
-        // look for the preferred station
         for (auto it = _stations->begin(); it != _stations->end(); ++it) {
             if (it->name == _prio_station_name) {
-                *_current_station = it;
-                return;
+                new_station = it;
+                break;
             }
         }
     }
 
-    // no preference or no success finding it
-    if (!_stations->empty())
+    if (new_station != _stations->end()) {
+        *_current_station = new_station;
+    } else if (!_stations->empty())
         *_current_station = _stations->begin();
     else
         *_current_station = _stations->end();
+
+    auto lock = _current_event.lock();
+    _current_event->put_event(EventPipe::EventType::STATION_CHANGE);
 }

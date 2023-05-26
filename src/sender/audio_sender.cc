@@ -5,30 +5,24 @@
 #include <unistd.h>
 #include <poll.h>
 
-#define MAIN        1
-#define NUM_POLLFDS 2
+#define INTERNAL_EVENT 0        
+#define NUM_POLLFDS    2
 
 AudioSenderWorker::AudioSenderWorker(
     const volatile sig_atomic_t& running, 
     const sockaddr_in& data_addr,
-    const size_t psize,
-    const uint64_t session_id,
     const SyncedPtr<CircularBuffer>& packet_cache,
-    const int main_fd
+    const SyncedPtr<EventPipe>& current_event,
+    const size_t psize,
+    const uint64_t session_id
 ) 
     : Worker(running) 
     , _packet_cache(packet_cache)
+    , _current_event(current_event)
     , _psize(psize)
     , _session_id(session_id)
-    , _main_fd(main_fd)
 {
-    _data_socket.set_broadcast();
     _data_socket.connect(data_addr);
-}
-
-AudioSenderWorker::~AudioSenderWorker() {
-    if (-1 == close(_main_fd))
-        fatal("close");
 }
 
 void AudioSenderWorker::send_packet(const AudioPacket& packet) {
@@ -43,8 +37,8 @@ void AudioSenderWorker::run() {
     memset(audio_buf, 0, sizeof(audio_buf));
 
     pollfd poll_fds[NUM_POLLFDS];
-    poll_fds[STDIN_FILENO].fd = STDIN_FILENO;
-    poll_fds[MAIN].fd         = _main_fd;
+    poll_fds[STDIN_FILENO].fd   = STDIN_FILENO;
+    poll_fds[INTERNAL_EVENT].fd = _current_event->in_fd();
     for (size_t i = 0; i < NUM_POLLFDS; ++i) {
         poll_fds[i].events  = POLLIN;
         poll_fds[i].revents = 0;
@@ -52,8 +46,7 @@ void AudioSenderWorker::run() {
 
     size_t first_byte_num = 0;
     while (running) {
-        int poll_status = poll(poll_fds, NUM_POLLFDS, -1);
-        if (poll_status == -1)
+        if (-1 == poll(poll_fds, NUM_POLLFDS, -1))
             fatal("poll");
 
         if (poll_fds[STDIN_FILENO].revents & POLLIN) {
@@ -70,11 +63,13 @@ void AudioSenderWorker::run() {
                 memset(audio_buf, 0, sizeof(audio_buf));
                 nread = 0;
             }
-
         } 
-        if (poll_fds[MAIN].revents & POLLIN) {
-            poll_fds[MAIN].revents = 0;
-            break; // we've been signalled to finish
+
+        if (poll_fds[INTERNAL_EVENT].revents & POLLIN) {
+            poll_fds[INTERNAL_EVENT].revents = 0;
+            auto event = _current_event->get_event();
+            if (event == EventPipe::EventType::SIG_INT && !running)
+                break;
         }
     }
 }

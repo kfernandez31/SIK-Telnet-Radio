@@ -52,7 +52,7 @@ void TcpSocket::listen() {
 void TcpSocket::accept() {
     socklen_t _conn_addr_len = sizeof(_conn_addr);
     if (-1 == (_conn_fd = ::accept(_fd, (sockaddr*)&_conn_addr, &_conn_addr_len)))
-        fatal("accept");
+        throw RadioException("Accepting a new connection failed");
 }
 
 TcpSocket::OutStream& TcpSocket::out() {

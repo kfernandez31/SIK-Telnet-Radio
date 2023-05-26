@@ -21,9 +21,10 @@ add_executable(sikradio-receiver
     src/common/datagram.cc
     src/common/circular_buffer.cc
     src/common/radio_station.cc
+    src/common/event_pipe.cc
     src/receiver/rexmit_sender.cc
     src/receiver/audio_printer.cc
-    # src/receiver/audio_receiver.cc # TODO:
+    src/receiver/audio_receiver.cc
     src/receiver/lookup_receiver.cc
     src/receiver/lookup_sender.cc
     src/receiver/station_remover.cc
@@ -43,6 +44,7 @@ add_executable(sikradio-sender
     src/common/datagram.cc
     src/common/circular_buffer.cc
     src/common/radio_station.cc
+    src/common/event_pipe.cc
     src/sender/audio_sender.cc
     src/sender/retransmitter.cc
     src/sender/controller.cc

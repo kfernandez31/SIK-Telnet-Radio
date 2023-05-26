@@ -8,21 +8,6 @@
 
 #include "err.hh"
 
-static inline void send_msg(const int fd) {
-    char msg_buf[1] = {42}; // contents not important
-    if (-1 == write(fd, msg_buf, sizeof(msg_buf)))
-        fatal("write");
-}
-
-static inline void order_worker_termination(int* fd) {
-    if (-1 != *fd) {
-        send_msg(*fd);
-        if (-1 == close(*fd))
-            fatal("close");
-        *fd = -1;
-    }
-}
-
 class Worker {
 protected:
     const volatile sig_atomic_t& running;

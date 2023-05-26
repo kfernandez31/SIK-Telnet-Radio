@@ -62,7 +62,5 @@ struct ReceiverParams {
 
         if (bsize < 1)
             throw RadioException("BSIZE must be positive");
-        if (!is_valid_bcast_addr(discover_addr.c_str()))
-            throw RadioException("DISCOVER_ADDR is not a valid broadcast address");
     }
 };

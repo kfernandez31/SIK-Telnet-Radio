@@ -65,22 +65,16 @@ void UdpSocket::set_drop_membership() {
 }
 
 void UdpSocket::enable_mcast_recv(const sockaddr_in& conn_addr) {
-    local_addr.sin_port          = conn_addr.sin_port;
+    // local_addr.sin_port          = conn_addr.sin_port; //TODO: ???
     _ipmreq.imr_interface.s_addr = INADDR_ANY;
     _ipmreq.imr_multiaddr        = conn_addr.sin_addr;
+    _mcast_recv_enabled = true;
     set_add_membership();
-    if (-1 == bind(_fd, (sockaddr*)&local_addr, sizeof(local_addr)))
-        fatal("bind");
 }
 
 void UdpSocket::disable_mcast_recv() {
+    _mcast_recv_enabled = false;
     set_drop_membership();
-}
-
-void UdpSocket::enable_mcast_send(const sockaddr_in& conn_addr) {
-    set_add_membership();
-    set_mcast_ttl();
-    connect(conn_addr);
 }
 
 void UdpSocket::connect(const sockaddr_in& conn_addr) {
@@ -89,15 +83,22 @@ void UdpSocket::connect(const sockaddr_in& conn_addr) {
         fatal("connect");
 }
 
-void UdpSocket::bind_local_port(const in_port_t port) {
+void UdpSocket::bind(const in_port_t port) {
     set_local_port(port);
-    if (-1 == bind(_fd, (sockaddr *)&local_addr, sizeof(local_addr)))
+    if (-1 == ::bind(_fd, (sockaddr *)&local_addr, sizeof(local_addr)))
         fatal("bind");
 }
 
 void UdpSocket::write(const void* buf, const size_t nbytes) const {
     if (nbytes != ::write(_fd, buf, nbytes))
         fatal("write");
+}
+
+size_t UdpSocket::read(void* buf, const size_t nbytes) const {
+    size_t nread;
+    if (-1 == (nread = ::read(_fd, buf, nbytes)))
+        fatal("read");
+    return nread;
 }
 
 void UdpSocket::sendto(const void* buf, const size_t nbytes, const sockaddr_in& dst_addr) const {

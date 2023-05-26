@@ -1,31 +1,56 @@
-CC = g++
-CFLAGS = -Wall -Wextra -O2 -std=c++20
+CXX := g++
+CXXFLAGS := -std=c++20 -Wall -Wextra -O2
 LDFLAGS = -lboost_program_options -pthread
 INCLUDES = -I/usr/include/boost
 
-# List of source files
-COMMON_SOURCES := $(wildcard src/common/*.cc)
-SENDER_SOURCES := src/sender.cc $(COMMON_SOURCES)
-RECEIVER_SOURCES := src/receiver.cc $(COMMON_SOURCES)
+# Source files
+RECEIVER_SRCS := src/common/err.cc \
+                 src/common/except.cc \
+                 src/common/net.cc \
+                 src/common/worker.cc \
+                 src/common/udp_socket.cc \
+                 src/common/tcp_socket.cc \
+                 src/common/datagram.cc \
+                 src/common/circular_buffer.cc \
+                 src/common/radio_station.cc \
+                 src/common/event_pipe.cc \
+                 src/receiver/rexmit_sender.cc \
+                 src/receiver/audio_printer.cc \
+                 src/receiver/audio_receiver.cc \
+                 src/receiver/lookup_receiver.cc \
+                 src/receiver/lookup_sender.cc \
+                 src/receiver/station_remover.cc \
+                 src/receiver/ui_menu.cc \
+                 src/receiver/receiver.cc
 
-# List of object files
-SENDER_OBJECTS := $(patsubst %.cc, %.o, $(SENDER_SOURCES))
-RECEIVER_OBJECTS := $(patsubst %.cc, %.o, $(RECEIVER_SOURCES))
+SENDER_SRCS := src/common/err.cc \
+               src/common/except.cc \
+               src/common/net.cc \
+               src/common/worker.cc \
+               src/common/udp_socket.cc \
+               src/common/datagram.cc \
+               src/common/circular_buffer.cc \
+               src/common/radio_station.cc \
+               src/common/event_pipe.cc \
+               src/sender/audio_sender.cc \
+               src/sender/retransmitter.cc \
+               src/sender/controller.cc \
+               src/sender/sender.cc
 
-# Targets
+# Output executables
+RECEIVER_TARGET := sikradio-receiver
+SENDER_TARGET := sikradio-sender
+
+.PHONY: all receiver sender clean
+
 all: sikradio-sender sikradio-receiver
 
-sikradio-sender: $(SENDER_OBJECTS)
-	$(CC) $(CFLAGS) $(INCLUDES) $(SENDER_OBJECTS) -o sikradio-sender $(LDFLAGS)
+receiver:
+    $(CXX) $(CXXFLAGS) $(INCLUDE_DIRS) $(RECEIVER_SRCS) -o $(RECEIVER_TARGET) $(LDFLAGS)
 
-sikradio-receiver: $(RECEIVER_OBJECTS)
-	$(CC) $(CFLAGS) $(INCLUDES) $(RECEIVER_OBJECTS) -o sikradio-receiver $(LDFLAGS)
+sender:
+    $(CXX) $(CXXFLAGS) $(INCLUDE_DIRS) $(SENDER_SRCS) -o $(SENDER_TARGET) $(LDFLAGS)
 
-# Object files
-%.o: %.cc
-	$(CC) $(CFLAGS) $(INCLUDES) -c $< -o $@
-
-# Clean
 clean:
-	rm -f $(SENDER_OBJECTS) $(RECEIVER_OBJECTS) sikradio-sender sikradio-receiver
+    rm -f $(RECEIVER_TARGET) $(SENDER_TARGET)
 

@@ -1,13 +1,14 @@
 #include "receiver_params.hh"
+
 #include "rexmit_sender.hh"
 #include "audio_printer.hh"
-// #include "audio_receiver.hh" //TODO:
+#include "audio_receiver.hh"
 #include "lookup_receiver.hh"
 #include "lookup_sender.hh"
 #include "station_remover.hh"
 #include "ui_menu.hh"
-#include "../common/tcp_socket.hh"
 
+#include "../common/tcp_socket.hh"
 #include "../common/circular_buffer.hh"
 
 #include <thread>
@@ -21,14 +22,13 @@
 #define UI_MENU         6
 #define NUM_WORKERS     7
 
-static int ui_menu_to_audio_receiver_pipe[2];
-static int audio_printer_to_audio_receiver_pipe[2];
-static int lookup_receiver_to_audio_receiver_pipe[2];
 static volatile sig_atomic_t running = true;
+static SyncedPtr<EventPipe> current_event = SyncedPtr<EventPipe>::make();
 
 static void sigint_handler(int signum) {
     logerr("Received %s. Shutting down...", strsignal(signum));
     running = false;  
+    current_event->put_event(EventPipe::EventType::SIG_INT);
 }
 
 //TODO: wielu klientów TCP, wówczas per klient:
@@ -36,13 +36,6 @@ static void sigint_handler(int signum) {
 // - LookupReceiver, StationRemover      - zbiór klientów i zmienianie każdemu stacji na prio
 
 int main(int argc, char* argv[]) {
-    if (-1 == pipe(ui_menu_to_audio_receiver_pipe))
-        fatal("pipe");
-    if (-1 == pipe(audio_printer_to_audio_receiver_pipe))
-        fatal("pipe");
-    if (-1 == pipe(lookup_receiver_to_audio_receiver_pipe))
-        fatal("pipe");
-    
     struct sigaction sa;
     sa.sa_handler = sigint_handler;
     sigemptyset(&sa.sa_mask);
@@ -59,36 +52,36 @@ int main(int argc, char* argv[]) {
     std::shared_ptr<Worker> workers[NUM_WORKERS];
     std::thread worker_threads[NUM_WORKERS];
 
+    sockaddr_in discover_addr = get_addr(params.discover_addr.c_str(), params.ctrl_port);
     auto stations        = SyncedPtr<StationSet>::make();
     auto current_station = SyncedPtr<StationSet::iterator>::make(stations->end());
     auto buffer          = SyncedPtr<CircularBuffer>::make(params.bsize);
+    auto current_event   = SyncedPtr<EventPipe>::make();
 
     workers[REXMIT_SENDER] = std::make_shared<RexmitSenderWorker>(
-        running, params.rtime, buffer, stations, current_station
+        running, buffer, stations, current_station, params.rtime
     );
     workers[AUDIO_PRINTER] = std::make_shared<AudioPrinterWorker>(
-        running, buffer, audio_printer_to_audio_receiver_pipe[STDOUT_FILENO]
+        running, buffer, current_event
     );
-    // workers[AUDIO_RECEIVER] = std::make_shared<AudioReceiverWorker>(
-    //     running, buffer, stations, current_station, 
-    //     std::static_pointer_cast<AudioPrinterWorker>(workers[AUDIO_PRINTER]), 
-    //     audio_printer_to_audio_receiver_pipe[STDIN_FILENO], 
-    //     ui_menu_to_audio_receiver_pipe[STDIN_FILENO], 
-    //     lookup_receiver_to_audio_receiver_pipe[STDIN_FILENO]
-    // );
+    workers[AUDIO_RECEIVER] = std::make_shared<AudioReceiverWorker>(
+        running, buffer, stations, current_station, current_event,
+        std::static_pointer_cast<AudioPrinterWorker>(workers[AUDIO_PRINTER])
+    );
     workers[LOOKUP_RECEIVER] = std::make_shared<LookupReceiverWorker>(
-        running, stations, current_station, params.prio_station_name, 
-        lookup_receiver_to_audio_receiver_pipe[STDOUT_FILENO]
+        running, stations, current_station, current_event,
+        params.prio_station_name, params.ctrl_port
     );
     workers[LOOKUP_SENDER] = std::make_shared<LookupSenderWorker>(
-        running, params.ctrl_port, params.discover_addr
+        running, discover_addr
     );
     workers[STATION_REMOVER] = std::make_shared<StationRemoverWorker>(
-        running, stations, current_station, params.prio_station_name
+        running, stations, current_station, current_event,
+        params.prio_station_name
     );
     workers[UI_MENU] = std::make_shared<UiMenuWorker>(
-        running, params.ui_port, params.prio_station_name, stations, 
-        current_station, ui_menu_to_audio_receiver_pipe[STDOUT_FILENO]
+        running, stations, current_station, current_event,
+        params.ui_port, params.prio_station_name
     );
 
     for (int i = 0; i < NUM_WORKERS; ++i)
