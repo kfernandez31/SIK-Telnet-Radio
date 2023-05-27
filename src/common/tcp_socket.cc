@@ -94,7 +94,7 @@ TcpClientSocket::InStream& TcpClientSocket::InStream::getline(std::string& str_b
     str_buf.clear();
   else {
     std::getline(ss, str_buf);
-    ss.get();
+    ss.get(); // set EOF
   }
   return *this;
 }

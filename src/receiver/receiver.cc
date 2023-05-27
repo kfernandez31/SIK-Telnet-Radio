@@ -1,12 +1,10 @@
 #include "receiver_params.hh"
 
 #include "rexmit_sender.hh"
-#include "audio_printer.hh"
 #include "audio_receiver.hh"
 #include "lookup_receiver.hh"
 #include "lookup_sender.hh"
 #include "station_remover.hh"
-#include "tcp_client_handler.hh"
 #include "tcp_server.hh"
 
 #include <thread>
@@ -89,7 +87,8 @@ int main(int argc, char* argv[]) {
         audio_recvr_event, client_sockets, tcp_poll_fds
     );
     workers[TCP_SERVER] = std::make_shared<TcpServerWorker>(
-        running, params.ui_port, client_sockets, tcp_poll_fds
+        running, params.ui_port, client_sockets, tcp_poll_fds,
+        std::static_pointer_cast<TcpClientHandlerWorker>(workers[TCP_CLIENT_HANDLER])
     );
     
     for (int i = 0; i < NUM_WORKERS; ++i)

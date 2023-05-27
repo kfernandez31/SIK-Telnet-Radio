@@ -2,13 +2,9 @@
 
 #include "../common/err.hh"
 #include "../common/except.hh"
+#include "ui.hh"
 
 #include <cassert>
-
-static const char* CMD_MOVE_UP   = "\e[A";
-static const char* CMD_MOVE_DOWN = "\e[B";
-
-static const char* ANSI_CLEAR = "\x1b[2J";
 
 static const char* HORIZONTAL_BAR        = "------------------------------------------------------------------------";
 static const char* PROGRAM_NAME          = "SIK Radio";
@@ -31,11 +27,10 @@ TcpClientHandlerWorker::TcpClientHandlerWorker(
     , _client_sockets(client_sockets)
     , _poll_fds(poll_fds)
 {
-    _command_map.emplace(CMD_MOVE_UP,   [&] { cmd_move_up();   });
-    _command_map.emplace(CMD_MOVE_DOWN, [&] { cmd_move_down(); });
+    _command_map.emplace(ui::keys::ARROW_UP,   [&] { cmd_move_up();   });
+    _command_map.emplace(ui::keys::ARROW_DOWN, [&] { cmd_move_down(); });
 }
 
-//TODO: wiele komend w jednej linii? możliwe?
 
 void TcpClientHandlerWorker::run() {
     const size_t NUM_CLIENTS = _client_sockets->size();
@@ -86,26 +81,43 @@ void TcpClientHandlerWorker::run() {
 std::string TcpClientHandlerWorker::menu_to_str() {
     std::stringstream ss;
     ss
-        // << ANSI_CLEAR //TODO: maybe add this?
         << HORIZONTAL_BAR << '\n'
         << PROGRAM_NAME   << '\n'
         << HORIZONTAL_BAR << '\n';
-
     for (auto it = _stations->begin(); it != _stations->end(); ++it) {
         if (it == *_current_station)
-            ss << CHOSEN_STATION_PREFIX;
+            ss << HIGHLIGHT(CHOSEN_STATION_PREFIX);
         ss << it->name << '\n';
     }
     ss << HORIZONTAL_BAR;
     return ss.str();
 }
 
+void TcpClientHandlerWorker::send_msg(TcpClientSocket& client, const std::string& msg) {
+    client.out() 
+        << ui::telnet::options::NAOFFD << ui::display::CLEAR 
+        << msg 
+        << TcpClientSocket::OutStream::flush;
+}
+
 void TcpClientHandlerWorker::send_to_all(const std::string& msg) {
     auto lock = _client_sockets.lock();
     for (auto &sock : *_client_sockets)
         if (sock.get() != nullptr)
-            sock->out() << msg << sock->out().endl;
-    
+        send_msg(*sock, msg);
+}
+
+void TcpClientHandlerWorker::config_telnet_client(TcpClientSocket& client) {
+    using namespace ui::telnet;
+    client.out() 
+        << commands::IAC << commands::WILL << options::ECHO 
+        << commands::IAC << commands::DO   << options::ECHO 
+        << commands::IAC << commands::DO   << options::LINEMODE 
+        << TcpClientSocket::OutStream::flush;
+}
+
+void TcpClientHandlerWorker::greet_telnet_client(TcpClientSocket& client) {
+    TcpClientHandlerWorker::send_msg(client, menu_to_str());
 }
 
 std::string TcpClientHandlerWorker::read_cmd(TcpClientSocket& socket) {

@@ -28,11 +28,10 @@ private:
     void cmd_move_up();
     void cmd_move_down();
 
-    std::string menu_to_str();
-    void        send_to_all(const std::string& msg);
-    
     std::string read_cmd(TcpClientSocket& socket);
     void        apply_cmd(std::string& cmd_buf);
+
+    void send_to_all(const std::string& msg);
 public:
     TcpClientHandlerWorker() = delete;
     TcpClientHandlerWorker(
@@ -46,4 +45,10 @@ public:
     );
 
     void run() override;
+
+    std::string menu_to_str();
+    void greet_telnet_client(TcpClientSocket& client_socket);
+
+    static void config_telnet_client(TcpClientSocket& client_socket);
+    static void send_msg(TcpClientSocket& client_socket, const std::string& msg);
 };
