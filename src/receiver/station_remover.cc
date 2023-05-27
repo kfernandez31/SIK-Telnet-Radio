@@ -12,13 +12,15 @@ StationRemoverWorker::StationRemoverWorker(
     const volatile sig_atomic_t& running, 
     const SyncedPtr<StationSet>& stations,
     const SyncedPtr<StationSet::iterator>& current_station,
-    const SyncedPtr<EventPipe>& current_event,
-    std::optional<std::string> prio_station_name
+    const SyncedPtr<EventPipe>& audio_recvr_event,
+    const SyncedPtr<EventPipe>& cli_handler_event,
+    const std::optional<std::string> prio_station_name
 ) 
     : Worker(running)
     , _stations(stations)
     , _current_station(current_station) 
-    , _current_event(current_event)
+    , _audio_recvr_event(audio_recvr_event)
+    , _cli_handler_event(cli_handler_event)
     , _prio_station_name(prio_station_name)
     {}
 
@@ -58,6 +60,12 @@ void StationRemoverWorker::reset_current_station() {
     else
         *_current_station = _stations->end();
 
-    auto lock = _current_event.lock();
-    _current_event->put_event(EventPipe::EventType::STATION_CHANGE);
+    {
+        auto lock = _audio_recvr_event.lock();
+        _audio_recvr_event->set_event(EventPipe::EventType::STATION_CHANGE);
+    }
+    {
+        auto lock = _cli_handler_event.lock();
+        _cli_handler_event->set_event(EventPipe::EventType::STATION_CHANGE);
+    }
 }

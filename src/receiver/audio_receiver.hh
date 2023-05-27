@@ -18,7 +18,7 @@ private:
     SyncedPtr<CircularBuffer> _buffer;
     SyncedPtr<StationSet> _stations;
     SyncedPtr<StationSet::iterator> _current_station;
-    SyncedPtr<EventPipe> _current_event;
+    SyncedPtr<EventPipe> _my_event;
     std::shared_ptr<AudioPrinterWorker> _printer;
 
     AudioPacket read_packet();
@@ -30,7 +30,7 @@ public:
         const SyncedPtr<CircularBuffer>& buffer,
         const SyncedPtr<StationSet>& stations,
         const SyncedPtr<StationSet::iterator>& current_station,
-        const SyncedPtr<EventPipe>& current_event,
+        const SyncedPtr<EventPipe>& my_event,
         const std::shared_ptr<AudioPrinterWorker>& printer
     );
 

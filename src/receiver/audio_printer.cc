@@ -7,11 +7,11 @@
 AudioPrinterWorker::AudioPrinterWorker(
     const volatile sig_atomic_t& running, 
     const SyncedPtr<CircularBuffer>& buffer,
-    const SyncedPtr<EventPipe>& current_event
+    const SyncedPtr<EventPipe>& audio_recvr_event
 )
     : Worker(running)
     , _buffer(buffer)
-    , _current_event(current_event) 
+    , _audio_recvr_event(audio_recvr_event) 
     {}
 
 void AudioPrinterWorker::run() {
@@ -25,8 +25,8 @@ void AudioPrinterWorker::run() {
         if (to_print == _buffer->range())
             _buffer->dump_tail(to_print);
         else {
-            auto event_lock = _current_event.lock();
-            _current_event->put_event(EventPipe::EventType::PACKET_LOSS);
+            auto event_lock = _audio_recvr_event.lock();
+            _audio_recvr_event->set_event(EventPipe::EventType::PACKET_LOSS);
         }
             
         _wait = true;

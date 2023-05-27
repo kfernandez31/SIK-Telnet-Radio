@@ -12,12 +12,13 @@
 #define NUM_WORKERS   3
 
 static volatile sig_atomic_t running = true;
-static SyncedPtr<EventPipe> current_event = SyncedPtr<EventPipe>::make();
+static SyncedPtr<EventPipe> audio_sndr_event = SyncedPtr<EventPipe>::make();
 
 static void sigint_handler(int signum) {
     logerr("Received %s. Shutting down...", strsignal(signum));
     running = false;
-    current_event->put_event(EventPipe::EventType::SIG_INT);
+    // intentionally not under a mutex
+    audio_sndr_event->set_event(EventPipe::EventType::SIG_INT);
 }
 
 int main(int argc, char* argv[]) {
@@ -50,7 +51,7 @@ int main(int argc, char* argv[]) {
         std::static_pointer_cast<RetransmitterWorker>(workers[RETRANSMITTER])
     );
     workers[AUDIO_SENDER] = std::make_shared<AudioSenderWorker>(
-        running, data_addr, packet_cache, current_event,
+        running, data_addr, packet_cache, audio_sndr_event,
         params.psize, params.session_id
     );
 

@@ -9,66 +9,75 @@
 
 #include <iostream>
 
-TcpSocket::TcpSocket(const in_port_t port, const size_t buf_size, const size_t queue_len) 
-    : _conn_fd(-1), _buf_size(buf_size), _queue_len(queue_len), _in(*this), _out(*this)
+//----------------------------TcpServerSocket------------------------------------
+
+TcpServerSocket::TcpServerSocket(const in_port_t port, const size_t queue_len)
+    : _queue_len(queue_len)
 {
     if (-1 == (_fd = socket(PF_INET, SOCK_STREAM, 0)))
         fatal("socket");
 
-    int optval = 1;
-    if (-1 == setsockopt(_fd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval)))
-        fatal("setsockopt");
-
-    _local_addr.sin_family      = AF_INET;
-    _local_addr.sin_addr.s_addr = INADDR_ANY;
-    _local_addr.sin_port        = htons(port);
-
-    if (-1 == bind(_fd, (sockaddr *) &_local_addr, sizeof(_local_addr)))
+    sockaddr_in server_addr;
+    server_addr.sin_family      = AF_INET;
+    server_addr.sin_addr.s_addr = INADDR_ANY;
+    server_addr.sin_port        = htons(port);
+    if (-1 == bind(_fd, (sockaddr*)&server_addr, sizeof(server_addr)))
         fatal("bind");
-
-    _buf = std::make_unique<char[]>(buf_size + 1);
 }
 
-TcpSocket::~TcpSocket() {
-    if (_conn_fd != -1) {
-        if (-1 == shutdown(_conn_fd, SHUT_RDWR))
-            fatal("shutdown");
-        if (-1 == ::close(_conn_fd))
-            fatal("close");
-    }
-    if (_fd != -1) {
-        if (-1 == shutdown(_fd, SHUT_RDWR))
-            fatal("shutdown");
-        if (-1 == ::close(_fd))
-            fatal("close");
-    }
+TcpServerSocket::~TcpServerSocket() {
+    if (-1 == ::close(_fd))
+        fatal("close");
 }
 
-void TcpSocket::listen() {
+void TcpServerSocket::listen() {
     if (-1 == ::listen(_fd, _queue_len))
         fatal("listen");
 }
 
-void TcpSocket::accept() {
-    socklen_t _conn_addr_len = sizeof(_conn_addr);
-    if (-1 == (_conn_fd = ::accept(_fd, (sockaddr*)&_conn_addr, &_conn_addr_len)))
+int TcpServerSocket::accept() {
+    sockaddr_in client_addr;
+    socklen_t client_addr_len = sizeof(client_addr);
+    int client_socket = ::accept(_fd, (sockaddr*)&client_addr, &client_addr_len);
+    if (-1 == client_socket)
         throw RadioException("Accepting a new connection failed");
+    return client_socket;
 }
 
-TcpSocket::OutStream& TcpSocket::out() {
-    return _out;
+//----------------------------TcpClientSocket------------------------------------
+
+TcpClientSocket::TcpClientSocket(const int fd, const size_t buf_size)
+    : _fd(fd), _in(*this), _out(*this)   
+{
+   _buf = std::make_unique<char[]>(buf_size + 1);
 }
 
-TcpSocket::InStream& TcpSocket::in() {
+TcpClientSocket::~TcpClientSocket() {
+    if (-1 == shutdown(_fd, SHUT_RDWR))
+        fatal("shutdown");
+    if (-1 == ::close(_fd))
+        fatal("close");
+}
+
+int TcpClientSocket::fd() const {
+    return _fd;
+}
+
+TcpClientSocket::InStream& TcpClientSocket::in() {
     return _in;
+}
+
+TcpClientSocket::OutStream& TcpClientSocket::out() {
+    return _out;
 }
 
 //----------------------------InStream------------------------------------
 
-TcpSocket::InStream::InStream(const TcpSocket& socket) : socket(socket) {}
+TcpClientSocket::InStream::InStream(const TcpClientSocket& socket)
+    : socket(socket) {}
 
-bool TcpSocket::InStream::read() {
-    ssize_t nread = ::read(socket._conn_fd, socket._buf.get(), socket._buf_size);
+bool TcpClientSocket::InStream::read() {
+    ssize_t nread = ::read(socket._fd, socket._buf.get(), socket._buf_size);
     if (nread == -1)
         fatal("read");
     if (nread == 0)
@@ -80,44 +89,46 @@ bool TcpSocket::InStream::read() {
     return true;
 }
 
-TcpSocket::InStream& TcpSocket::InStream::getline(std::string& _buf) {
+TcpClientSocket::InStream& TcpClientSocket::InStream::getline(std::string& str_buf) {
   if (ss.eof())
-    _buf.clear();
+    str_buf.clear();
   else {
-    std::getline(ss, _buf);
+    std::getline(ss, str_buf);
     ss.get();
   }
   return *this;
 }
 
-bool TcpSocket::InStream::eof() {
+bool TcpClientSocket::InStream::eof() {
     return ss.eof() && !read();
 }
 
 //----------------------------OutStream------------------------------------
 
-TcpSocket::OutStream::OutStream(const TcpSocket& socket) : socket(socket) {
+TcpClientSocket::OutStream::OutStream(const TcpClientSocket& socket)
+    : socket(socket) 
+{
     ss.str("");
 }
 
-TcpSocket::OutStream& TcpSocket::OutStream::operator<<(OutStream& (*f)(OutStream&)) {
+TcpClientSocket::OutStream& TcpClientSocket::OutStream::operator<<(OutStream& (*f)(OutStream&)) {
     f(*this);
     return *this;
 }
 
-void TcpSocket::OutStream::write() {
+void TcpClientSocket::OutStream::write() {
     const std::string& str = ss.str();
-    if (str.length() != ::write(socket._conn_fd, str.c_str(), str.length()))
+    if (str.length() != ::write(socket._fd, str.c_str(), str.length()))
         throw RadioException("write to socket failed");
     ss.str("");
     ss.clear();
 }
 
-TcpSocket::OutStream& TcpSocket::OutStream::flush(OutStream& stream) {
+TcpClientSocket::OutStream& TcpClientSocket::OutStream::flush(OutStream& stream) {
     stream.write();
     return stream;
 }
 
-TcpSocket::OutStream& TcpSocket::OutStream::endl(OutStream& stream) {
+TcpClientSocket::OutStream& TcpClientSocket::OutStream::endl(OutStream& stream) {
     return stream << '\n' << OutStream::flush;
 }

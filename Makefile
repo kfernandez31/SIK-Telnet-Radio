@@ -20,7 +20,8 @@ RECEIVER_SRCS := src/common/err.cc \
                  src/receiver/lookup_receiver.cc \
                  src/receiver/lookup_sender.cc \
                  src/receiver/station_remover.cc \
-                 src/receiver/ui_menu.cc \
+                 src/receiver/tcp_client_handler.hh.cc \
+                 src/receiver/tcp_server.hh.cc \
                  src/receiver/receiver.cc
 
 SENDER_SRCS := src/common/err.cc \

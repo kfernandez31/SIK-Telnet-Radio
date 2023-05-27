@@ -12,13 +12,13 @@ AudioSenderWorker::AudioSenderWorker(
     const volatile sig_atomic_t& running, 
     const sockaddr_in& data_addr,
     const SyncedPtr<CircularBuffer>& packet_cache,
-    const SyncedPtr<EventPipe>& current_event,
+    const SyncedPtr<EventPipe>& my_event,
     const size_t psize,
     const uint64_t session_id
 ) 
     : Worker(running) 
     , _packet_cache(packet_cache)
-    , _current_event(current_event)
+    , _my_event(my_event)
     , _psize(psize)
     , _session_id(session_id)
 {
@@ -38,7 +38,7 @@ void AudioSenderWorker::run() {
 
     pollfd poll_fds[NUM_POLLFDS];
     poll_fds[STDIN_FILENO].fd   = STDIN_FILENO;
-    poll_fds[INTERNAL_EVENT].fd = _current_event->in_fd();
+    poll_fds[INTERNAL_EVENT].fd = _my_event->in_fd();
     for (size_t i = 0; i < NUM_POLLFDS; ++i) {
         poll_fds[i].events  = POLLIN;
         poll_fds[i].revents = 0;
@@ -67,9 +67,17 @@ void AudioSenderWorker::run() {
 
         if (poll_fds[INTERNAL_EVENT].revents & POLLIN) {
             poll_fds[INTERNAL_EVENT].revents = 0;
-            auto event = _current_event->get_event();
-            if (event == EventPipe::EventType::SIG_INT && !running)
-                break;
+            EventPipe::EventType event_val;
+            {
+                auto lock  = _my_event.lock();
+                event_val  = _my_event->get_event();
+                _my_event->set_event(EventPipe::EventType::NONE);
+            }
+            switch (event_val) {
+                case EventPipe::EventType::SIG_INT:
+                    assert(!running);
+                default: break;
+            }
         }
     }
 }

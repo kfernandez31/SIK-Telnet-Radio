@@ -28,7 +28,8 @@ add_executable(sikradio-receiver
     src/receiver/lookup_receiver.cc
     src/receiver/lookup_sender.cc
     src/receiver/station_remover.cc
-    src/receiver/ui_menu.cc
+    src/receiver/tcp_client_handler.cc
+    src/receiver/tcp_server.cc
     src/receiver/receiver.cc
 )
 target_link_libraries(sikradio-receiver Boost::program_options)

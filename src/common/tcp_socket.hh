@@ -7,22 +7,35 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <vector>
 
-struct TcpSocket {
+struct TcpServerSocket {
 public:
-    TcpSocket(const in_port_t port, const size_t buf_size = DEFAULT_BUF_SIZE, const size_t queue_len = DEFAULT_QUEUE_LEN);
-    ~TcpSocket();
+    TcpServerSocket() = delete;
+    TcpServerSocket(const in_port_t port, const size_t queue_len = DEFAULT_QUEUE_LEN);
+    ~TcpServerSocket();
 
     void listen();
-    void accept();
+    int  accept();
+private:
+    static const size_t DEFAULT_QUEUE_LEN = 42;
+    int _fd;
+    size_t _queue_len;
+};
+
+struct TcpClientSocket {
+public:
+    TcpClientSocket() = delete;
+    TcpClientSocket(const int fd, const size_t buf_size = DEFAULT_BUF_SIZE);
+    ~TcpClientSocket();
 
     struct InStream {
         std::stringstream ss;
-        const TcpSocket& socket;
+        const TcpClientSocket& socket;
         bool read();
     public:
         InStream() = delete;
-        InStream(const TcpSocket& socket);
+        InStream(const TcpClientSocket& socket);
 
         template<typename T>
         InStream& operator>>(const T& val) {
@@ -31,17 +44,17 @@ public:
             return *this;
         }
 
-        InStream& getline(std::string& buf);
+        InStream& getline(std::string& str_buf);
         bool eof();
     };
 
     struct OutStream {
     private:
         std::stringstream ss;
-        const TcpSocket& socket;
+        const TcpClientSocket& socket;
     public:
         OutStream() = delete;
-        OutStream(const TcpSocket& socket);
+        OutStream(const TcpClientSocket& socket);
 
         template<typename T>
         OutStream& operator<<(const T& val) {
@@ -55,16 +68,17 @@ public:
         static OutStream& endl(OutStream& stream);
     };
 
+    InStream&  in();
     OutStream& out();
-    InStream& in();
+
+    int fd() const;
 private:
-    int _fd, _conn_fd;
-    size_t _buf_size, _queue_len;
-    sockaddr_in _local_addr, _conn_addr;
-    std::unique_ptr<char[]> _buf;
+    static const size_t DEFAULT_BUF_SIZE = 1024;
+    int _fd;
     InStream _in;
     OutStream _out;
-
-    static const size_t DEFAULT_BUF_SIZE = 1024;
-    static const size_t DEFAULT_QUEUE_LEN = 20;
+    size_t _buf_size;
+    std::unique_ptr<char[]> _buf;
 };
+
+using TcpClientSocketSet = std::vector<std::unique_ptr<TcpClientSocket>>;

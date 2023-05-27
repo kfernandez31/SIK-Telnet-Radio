@@ -9,16 +9,20 @@ LookupReceiverWorker::LookupReceiverWorker(
     const volatile sig_atomic_t& running, 
     const SyncedPtr<StationSet>& stations,
     const SyncedPtr<StationSet::iterator>& current_station,
-    const SyncedPtr<EventPipe>& current_event,
+    const SyncedPtr<EventPipe>& audio_recvr_event,
+    const SyncedPtr<EventPipe>& cli_handler_event,
     const std::optional<std::string> prio_station_name,
     const in_port_t ctrl_port
 ) 
     : Worker(running)
     , _stations(stations)
     , _current_station(current_station) 
-    , _current_event(current_event)
+    , _audio_recvr_event(audio_recvr_event)
+    , _cli_handler_event(cli_handler_event)
     , _prio_station_name(prio_station_name)
-    {}
+{
+    _ctrl_socket.bind(ctrl_port);
+}
 
 void LookupReceiverWorker::run() {
     char reply_buf[LOOKUP_REPLY_MAX_LEN + 1] = {0};
@@ -43,7 +47,14 @@ void LookupReceiverWorker::run() {
             if (_stations->size() == 1 || _prio_station_name == station.name) {
                 auto current_station_lock = _current_station.lock();
                 (*_current_station) = inserted_it;
-                _current_event->put_event(EventPipe::EventType::STATION_CHANGE);
+                {
+                    auto lock = _audio_recvr_event.lock();
+                    _audio_recvr_event->set_event(EventPipe::EventType::STATION_CHANGE);
+                }
+                {
+                    auto lock = _cli_handler_event.lock();
+                    _cli_handler_event->set_event(EventPipe::EventType::STATION_CHANGE);
+                }
             }
         } catch (const std::exception& e) {
             logerr("Malformed lookup reply: %s", e.what());

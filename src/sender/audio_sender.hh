@@ -13,7 +13,7 @@ struct AudioSenderWorker : public Worker {
 private:
     UdpSocket _data_socket;
     SyncedPtr<CircularBuffer> _packet_cache;
-    SyncedPtr<EventPipe> _current_event;
+    SyncedPtr<EventPipe> _my_event;
     size_t _psize;
     uint64_t _session_id;
 
@@ -24,7 +24,7 @@ public:
         const volatile sig_atomic_t& running, 
         const sockaddr_in& data_addr,
         const SyncedPtr<CircularBuffer>& packet_cache,
-        const SyncedPtr<EventPipe>& current_event,
+        const SyncedPtr<EventPipe>& my_event,
         const size_t psize,
         const uint64_t session_id
     );

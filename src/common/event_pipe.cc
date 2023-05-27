@@ -20,7 +20,7 @@ int EventPipe::in_fd() const {
     return _fds[STDIN_FILENO];
 }
 
-void EventPipe::put_event(const EventPipe::EventType event_type) {
+void EventPipe::set_event(const EventPipe::EventType event_type) {
     if (-1 == write(STDOUT_FILENO, &event_type, sizeof(event_type)))
         fatal("write");
 }

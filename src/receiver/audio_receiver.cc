@@ -19,14 +19,14 @@ AudioReceiverWorker::AudioReceiverWorker(
     const SyncedPtr<CircularBuffer>& buffer,
     const SyncedPtr<StationSet>& stations,
     const SyncedPtr<StationSet::iterator>& current_station,
-    const SyncedPtr<EventPipe>& current_event,
+    const SyncedPtr<EventPipe>& my_event,
     const std::shared_ptr<AudioPrinterWorker>& printer
 )
     : Worker(running)
     , _buffer(buffer)
     , _stations(stations)
     , _current_station(current_station)
-    , _current_event(current_event)
+    , _my_event(my_event)
     , _printer(printer)
     {}
 
@@ -51,7 +51,7 @@ void AudioReceiverWorker::run() {
     uint64_t cur_session = NO_SESSION;
     pollfd poll_fds[NUM_POLLFDS];
     poll_fds[NETWORK].fd        = _data_socket.fd();
-    poll_fds[INTERNAL_EVENT].fd = _current_event->in_fd();
+    poll_fds[INTERNAL_EVENT].fd = _my_event->in_fd();
     for (size_t i = 0; i < NUM_POLLFDS; ++i) {
         poll_fds[i].events  = POLLIN;
         poll_fds[i].revents = 0;
@@ -64,15 +64,21 @@ void AudioReceiverWorker::run() {
 
         if (poll_fds[INTERNAL_EVENT].revents & POLLIN) {
             poll_fds[INTERNAL_EVENT].revents = 0;
-            auto lock = _current_event.lock();
-            auto event = _current_event->get_event();
-            if (event == EventPipe::EventType::SIG_INT && !running)
-                break;
-            if (event == EventPipe::EventType::PACKET_LOSS)
-                cur_session = NO_SESSION;
-            if (event == EventPipe::EventType::STATION_CHANGE) {
-                cur_session = NO_SESSION;
-                change_station();
+            EventPipe::EventType event_val;
+            {
+                auto lock  = _my_event.lock();
+                event_val  = _my_event->get_event();
+                _my_event->set_event(EventPipe::EventType::NONE);
+            }
+            switch (event_val) {
+                case EventPipe::EventType::SIG_INT:
+                    assert(!running);
+                    return;
+                case EventPipe::EventType::STATION_CHANGE:
+                    change_station(); // intentional fallthrough
+                case EventPipe::EventType::PACKET_LOSS:
+                    cur_session = NO_SESSION;
+                default: break;
             }
         }
         // got a new packet

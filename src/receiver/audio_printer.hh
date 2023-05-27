@@ -12,7 +12,7 @@
 struct AudioPrinterWorker : public Worker {
 private:
     SyncedPtr<CircularBuffer> _buffer;
-    SyncedPtr<EventPipe> _current_event;
+    SyncedPtr<EventPipe> _audio_recvr_event;
     std::condition_variable _cv;
     bool _wait;
 public:
@@ -20,9 +20,10 @@ public:
     AudioPrinterWorker(
         const volatile sig_atomic_t& running, 
         const SyncedPtr<CircularBuffer>& buffer,
-        const SyncedPtr<EventPipe>& current_event
+        const SyncedPtr<EventPipe>& audio_recvr_event
     );
 
     void run() override;
+    
     void signal();
 };
