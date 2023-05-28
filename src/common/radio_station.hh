@@ -15,7 +15,7 @@ struct RadioStation {
     std::string mcast_addr;
     in_port_t data_port;
     std::string name;
-    std::chrono::steady_clock::time_point last_reply;
+    mutable std::chrono::steady_clock::time_point last_reply;
     
     RadioStation(
         const sockaddr_in& sender_addr,
@@ -26,6 +26,7 @@ struct RadioStation {
 
     sockaddr_in get_data_addr() const;
     sockaddr_in get_ctrl_addr() const;
+    void update_last_reply() const; // the fact this has to be const is baffling 
     
     bool operator==(const RadioStation& other) const;
 

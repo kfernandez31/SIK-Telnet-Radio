@@ -2,7 +2,7 @@
 #include "audio_sender.hh"
 #include "controller.hh"
 #include "../common/circular_buffer.hh"
-#include "../common/event_pipe.hh"
+#include "../common/event_queue.hh"
 
 #include <thread>
 
@@ -12,21 +12,22 @@
 #define NUM_WORKERS   3
 
 static volatile sig_atomic_t running = true;
-static SyncedPtr<EventPipe> audio_sndr_event = SyncedPtr<EventPipe>::make();
+static SyncedPtr<EventQueue> audio_sndr_event = SyncedPtr<EventQueue>::make();
 
-static void sigint_handler(int signum) {
+static void signal_handler(int signum) {
     logerr("Received %s. Shutting down...", strsignal(signum));
     running = false;
-    // intentionally not under a mutex
-    audio_sndr_event->set_event(EventPipe::EventType::SIG_INT);
+    // intentionally not under a mutex //TODO: this IS not enough
+    audio_sndr_event->push(EventQueue::EventType::TERMINATE);
 }
 
 int main(int argc, char* argv[]) {
     struct sigaction sa;
-    sa.sa_handler = sigint_handler;
+    sa.sa_handler = signal_handler;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = 0;
     sigaction(SIGINT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
 
     SenderParams params;
     try {

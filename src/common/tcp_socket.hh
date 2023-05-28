@@ -17,6 +17,7 @@ public:
 
     void listen();
     int  accept();
+    int fd() const;
 private:
     static const size_t DEFAULT_QUEUE_LEN = 42;
     int _fd;

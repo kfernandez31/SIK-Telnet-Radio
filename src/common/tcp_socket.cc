@@ -44,6 +44,10 @@ int TcpServerSocket::accept() {
     return client_socket;
 }
 
+int TcpServerSocket::fd() const {
+    return _fd;
+}
+
 //----------------------------TcpClientSocket------------------------------------
 
 TcpClientSocket::TcpClientSocket(const int fd, const size_t buf_size)

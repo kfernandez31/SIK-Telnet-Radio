@@ -1,3 +1,0 @@
-STDIN!!!!5 == 5buffer full: afafg
-Received Interrupt: 2. Shutting down...
-bye bye bye

@@ -8,27 +8,28 @@
 #include <poll.h>
 #include <unistd.h>
 
-#define NO_SESSION     0
+#define NO_SESSION  0
 
-#define INTERNAL_EVENT 0
-#define NETWORK        1
-#define NUM_POLLFDS    2
+#define MY_EVENT    0
+#define NETWORK     1
+#define NUM_POLLFDS 2
 
 AudioReceiverWorker::AudioReceiverWorker(
     const volatile sig_atomic_t& running, 
     const SyncedPtr<CircularBuffer>& buffer,
     const SyncedPtr<StationSet>& stations,
     const SyncedPtr<StationSet::iterator>& current_station,
-    const SyncedPtr<EventPipe>& my_event,
-    const std::shared_ptr<AudioPrinterWorker>& printer
+    const SyncedPtr<EventQueue>& my_event,
+    const SyncedPtr<EventQueue>& audio_printer_event
 )
     : Worker(running)
     , _buffer(buffer)
     , _stations(stations)
     , _current_station(current_station)
     , _my_event(my_event)
-    , _printer(printer)
+    , _audio_printer_event(audio_printer_event)
     {}
+
 
 AudioPacket AudioReceiverWorker::read_packet() {
     char pkt_buf[MTU + 1] = {0};
@@ -50,42 +51,40 @@ void AudioReceiverWorker::run() {
     bool has_printed = false;
     uint64_t cur_session = NO_SESSION;
     pollfd poll_fds[NUM_POLLFDS];
-    poll_fds[NETWORK].fd        = _data_socket.fd();
-    poll_fds[INTERNAL_EVENT].fd = _my_event->in_fd();
+    poll_fds[MY_EVENT].fd = _my_event->in_fd();
+    poll_fds[NETWORK].fd  = _data_socket.fd();
     for (size_t i = 0; i < NUM_POLLFDS; ++i) {
         poll_fds[i].events  = POLLIN;
         poll_fds[i].revents = 0;
     }
 
-    for (;;) {
-        // this doesn't need a timeout because the remover takes care of inactive stations
+    while (running) {
         if (-1 == poll(poll_fds, NUM_POLLFDS, -1))
             fatal("poll");
 
-        if (poll_fds[INTERNAL_EVENT].revents & POLLIN) {
-            poll_fds[INTERNAL_EVENT].revents = 0;
-            EventPipe::EventType event_val;
+        if (poll_fds[MY_EVENT].revents & POLLIN) {
+            poll_fds[MY_EVENT].revents = 0;
+            EventQueue::EventType event_val;
             {
                 auto lock  = _my_event.lock();
-                event_val  = _my_event->get_event();
-                _my_event->set_event(EventPipe::EventType::NONE);
+                event_val  = _my_event->pop();
             }
             switch (event_val) {
-                case EventPipe::EventType::SIG_INT:
-                    assert(!running);
+                case EventQueue::EventType::TERMINATE:
                     return;
-                case EventPipe::EventType::STATION_CHANGE:
-                    change_station(); // intentional fallthrough
-                case EventPipe::EventType::PACKET_LOSS:
+                case EventQueue::EventType::CURRENT_STATION_CHANGED:
+                    change_station();
+                case EventQueue::EventType::PACKET_LOSS: // intentional fall-through
                     cur_session = NO_SESSION;
                 default: break;
             }
         }
+
         // got a new packet
         if (poll_fds[NETWORK].revents & POLLIN) {
+            poll_fds[NETWORK].revents = 0;
             try {
                 AudioPacket packet = read_packet();
-                poll_fds[NETWORK].revents = 0;
 
                 if (packet.session_id < cur_session) {
                     logerr("Ignoring old session %llu...", packet.session_id);
@@ -114,11 +113,10 @@ void AudioReceiverWorker::run() {
                 
                 auto lock = _buffer.lock();
                 _buffer->try_put(packet);
-                if (has_printed || (!has_printed && (packet.first_byte_num + _buffer->psize() - 1) 
-                    >= (_buffer->byte0() + _buffer->capacity() / 4 * 3))) 
-                {
-                    has_printed = true;
-                    _printer->signal();
+                if (has_printed || packet.first_byte_num + _buffer->psize() - 1 >= _buffer->print_threshold()) {
+                    has_printed |= true;
+                    _audio_printer_event.lock();
+                    _audio_printer_event->push(EventQueue::EventType::NEW_JOBS);
                 }
             } catch (std::exception& e) {
                 logerr("Failed to read packet: ", e.what());

@@ -33,15 +33,12 @@ private:
     SyncedPtr(const std::shared_ptr<ProtectedResource<T>>& ptr) : _ptr(ptr) {}
 
 public:
-    static SyncedPtr<T> make() {
-        return SyncedPtr<T>(std::make_shared<ProtectedResource<T>>());
-    }
-
     template<typename... Args>
     static SyncedPtr<T> make(Args&&... args) {
         return SyncedPtr<T>(std::make_shared<ProtectedResource<T>>(std::forward<Args>(args)...));
     }
-
+    
+    SyncedPtr() : _ptr(std::make_shared<ProtectedResource<T>>()) {}
     SyncedPtr(const SyncedPtr<T>& other) : _ptr(other._ptr) {}
 
     T& operator*() {

@@ -5,14 +5,14 @@
 #include <unistd.h>
 #include <poll.h>
 
-#define INTERNAL_EVENT 0        
-#define NUM_POLLFDS    2
+#define MY_EVENT    0        
+#define NUM_POLLFDS 2
 
 AudioSenderWorker::AudioSenderWorker(
     const volatile sig_atomic_t& running, 
     const sockaddr_in& data_addr,
     const SyncedPtr<CircularBuffer>& packet_cache,
-    const SyncedPtr<EventPipe>& my_event,
+    const SyncedPtr<EventQueue>& my_event,
     const size_t psize,
     const uint64_t session_id
 ) 
@@ -38,7 +38,7 @@ void AudioSenderWorker::run() {
 
     pollfd poll_fds[NUM_POLLFDS];
     poll_fds[STDIN_FILENO].fd   = STDIN_FILENO;
-    poll_fds[INTERNAL_EVENT].fd = _my_event->in_fd();
+    poll_fds[MY_EVENT].fd = _my_event->in_fd();
     for (size_t i = 0; i < NUM_POLLFDS; ++i) {
         poll_fds[i].events  = POLLIN;
         poll_fds[i].revents = 0;
@@ -48,10 +48,24 @@ void AudioSenderWorker::run() {
     while (running) {
         if (-1 == poll(poll_fds, NUM_POLLFDS, -1))
             fatal("poll");
+            
+        if (poll_fds[MY_EVENT].revents & POLLIN) {
+            poll_fds[MY_EVENT].revents = 0;
+            EventQueue::EventType event_val;
+            {
+                auto lock  = _my_event.lock();
+                event_val  = _my_event->pop();
+            }
+            switch (event_val) {
+                case EventQueue::EventType::TERMINATE:
+                    assert(!running);
+                default: break;
+            }
+        }
 
         if (poll_fds[STDIN_FILENO].revents & POLLIN) {
-            ssize_t res = read(STDIN_FILENO, audio_buf + nread, _psize - nread);
             poll_fds[STDIN_FILENO].revents = 0;
+            ssize_t res = read(STDIN_FILENO, audio_buf + nread, _psize - nread);
             if (res == -1)
                 fatal("read");
             if (res == 0)
@@ -64,20 +78,5 @@ void AudioSenderWorker::run() {
                 nread = 0;
             }
         } 
-
-        if (poll_fds[INTERNAL_EVENT].revents & POLLIN) {
-            poll_fds[INTERNAL_EVENT].revents = 0;
-            EventPipe::EventType event_val;
-            {
-                auto lock  = _my_event.lock();
-                event_val  = _my_event->get_event();
-                _my_event->set_event(EventPipe::EventType::NONE);
-            }
-            switch (event_val) {
-                case EventPipe::EventType::SIG_INT:
-                    assert(!running);
-                default: break;
-            }
-        }
     }
 }

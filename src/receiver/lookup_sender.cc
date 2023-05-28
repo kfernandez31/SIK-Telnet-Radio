@@ -6,7 +6,9 @@
 #include <thread>
 #include <chrono>
 
-#define LOOKUP_TIMEOUT_MILLIS 5000
+using namespace std::chrono;
+
+static milliseconds LOOKUP_TIMEOUT = milliseconds(5000);
 
 LookupSenderWorker::LookupSenderWorker(
     const volatile sig_atomic_t& running,
@@ -20,9 +22,10 @@ LookupSenderWorker::LookupSenderWorker(
 }
 
 void LookupSenderWorker::run() {
-    std::optional<std::chrono::steady_clock::time_point> prev_lookup_time;
+    steady_clock::time_point prev_sleep = steady_clock::now();
     while (running) {
-        sleep_until(prev_lookup_time, std::chrono::milliseconds(LOOKUP_TIMEOUT_MILLIS));
+        std::this_thread::sleep_until(prev_sleep + LOOKUP_TIMEOUT);
+        prev_sleep = steady_clock::now();
         _socket.sendto(LOOKUP_REQUEST_PREFIX, sizeof(LOOKUP_REQUEST_PREFIX) - 1, _discover_addr);
     }
 }

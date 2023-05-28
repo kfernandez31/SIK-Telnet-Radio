@@ -1,4 +1,5 @@
 #include "net.hh"
+
 #include "err.hh"
 
 #include <netdb.h>
@@ -32,8 +33,11 @@ sockaddr_in get_addr(const char* host, const in_port_t port) {
     return addr;
 }
 
-bool is_valid_mcast_addr(const char* str) {
-    struct in_addr addr;
-    int result = inet_pton(AF_INET, str, &addr);
-    return result == 1 && IN_MULTICAST(ntohl(addr.s_addr));
+bool is_mcast_addr(const char* host, const in_port_t port) {
+    sockaddr_in addr = {};
+    addr.sin_family  = AF_INET; // IPv4
+    addr.sin_port    = htons(port);
+    return 
+        1 == inet_pton(AF_INET, host, &addr.sin_addr.s_addr) 
+        && IN_MULTICAST(ntohl(addr.sin_addr.s_addr));
 }

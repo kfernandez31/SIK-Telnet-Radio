@@ -6,6 +6,8 @@
 #include <thread>
 #include <optional>
 
+using namespace std::chrono;
+
 RetransmitterWorker::RetransmitterWorker(
     const volatile sig_atomic_t& running, 
     const SyncedPtr<CircularBuffer>& packet_cache,
@@ -18,7 +20,6 @@ RetransmitterWorker::RetransmitterWorker(
     , _job_queue(job_queue)
     , _session_id(session_id)
     , _rtime(rtime)
-    , _wait(false)
     {}
 
 void RetransmitterWorker::handle_retransmission(RexmitRequest& req) {
@@ -59,7 +60,7 @@ void RetransmitterWorker::emplace_job(const char* buf) {
 }
 
 void RetransmitterWorker::run() {
-    std::optional<std::chrono::steady_clock::time_point> prev_rexmit_time;
+    steady_clock::time_point prev_sleep = steady_clock::now();
     while (running) {
         size_t new_jobs;
         {
@@ -70,7 +71,8 @@ void RetransmitterWorker::run() {
             new_jobs = _job_queue->size();
         }
 
-        sleep_until(prev_rexmit_time, _rtime);
+        std::this_thread::sleep_until(prev_sleep + _rtime);
+        prev_sleep = steady_clock::now();
 
         // intentionally not under a mutex
         while (new_jobs--) {

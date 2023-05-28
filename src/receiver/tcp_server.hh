@@ -1,6 +1,7 @@
 #pragma once
 
-#include "tcp_client_handler.hh"
+#include "ui_menu.hh"
+#include "../common/event_queue.hh"
 #include "../common/worker.hh"
 #include "../common/tcp_socket.hh"
 #include "../common/synced_ptr.hh"
@@ -12,22 +13,25 @@
 #include <memory>
 #include <vector>
 
+
 struct TcpServerWorker : public Worker {
 private:
-    TcpServerSocket _socket;
     SyncedPtr<TcpClientSocketSet> _client_sockets;
-    std::shared_ptr<std::vector<pollfd>> _poll_fds;
-    std::shared_ptr<TcpClientHandlerWorker> _client_handler;
+    SyncedPtr<EventQueue> _my_event;
+    std::shared_ptr<std::vector<pollfd>> _client_poll_fds;
+    std::shared_ptr<UiMenuWorker> _ui_menu;
+    TcpServerSocket _socket;
 
     void try_register_client(const int client_fd);
 public:
     TcpServerWorker() = delete;
     TcpServerWorker(
         const volatile sig_atomic_t& running, 
-        const int ui_port,
         const SyncedPtr<TcpClientSocketSet>& client_sockets,
-        const std::shared_ptr<std::vector<pollfd>>& poll_fds,
-        const std::shared_ptr<TcpClientHandlerWorker>& client_handler
+        const SyncedPtr<EventQueue>& my_event,
+        const std::shared_ptr<std::vector<pollfd>>& client_poll_fds,
+        const std::shared_ptr<UiMenuWorker>& ui_menu,
+        const int ui_port
     );
 
     void run() override;

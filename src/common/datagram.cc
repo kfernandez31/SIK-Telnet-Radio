@@ -28,7 +28,7 @@ LookupReply::LookupReply(const std::string& str) {
     if (prefix != LOOKUP_REPLY_PREFIX)
         throw RadioException("Invalid prefix");
     ss >> mcast_addr;
-    if (!is_valid_mcast_addr(mcast_addr.c_str()))
+    if (!is_mcast_addr(mcast_addr.c_str(), 0)) //TODO: port 0 może być?
         throw RadioException("Invalid multicast address");
     try {
         ss >> data_port;

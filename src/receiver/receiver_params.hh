@@ -36,7 +36,7 @@ struct ReceiverParams {
             ("ctrl_port,C",     bpo::value<in_port_t>()->default_value(39629), "CTRL_PORT")
             ("ui_port,U",       bpo::value<in_port_t>()->default_value(19629), "UI_PORT")
             ("bsize,b",         bpo::value<size_t>()->default_value(65536), "BSIZE")
-            ("rtime,R",      bpo::value<size_t>()->default_value(250), "RTIME");
+            ("rtime,R",         bpo::value<size_t>()->default_value(250), "RTIME");
 
         bpo::variables_map vm;
         bpo::store(bpo::parse_command_line(argc, argv, desc), vm);

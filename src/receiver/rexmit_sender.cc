@@ -5,7 +5,8 @@
 
 #include <thread>
 #include <chrono>
-#include <optional>
+
+using namespace std::chrono;
 
 RexmitSenderWorker::RexmitSenderWorker(
     const volatile sig_atomic_t& running, 
@@ -21,8 +22,13 @@ RexmitSenderWorker::RexmitSenderWorker(
     , _rtime(rtime)
     {}
 
-// This approach is much more efficient than the one described in the task description
+// This approach is much more efficient than the one in the task description
 void RexmitSenderWorker::order_retransmission() {
+    auto stations_lock        = _stations.lock();   
+    auto current_station_lock = _current_station.lock();
+    if (*_current_station == _stations->end())
+        return; // not connected to any station => no one to ask for retransmission
+
     auto buffer_lock = _buffer.lock();
     size_t i = _buffer->tail();
     std::vector<uint64_t> packet_ids;
@@ -31,17 +37,19 @@ void RexmitSenderWorker::order_retransmission() {
             packet_ids.push_back(i + _buffer->abs_tail());
         i = (i + _buffer->psize()) % _buffer->rounded_cap();
     } while (i != _buffer->tail());
-    RexmitRequest request(packet_ids);
-    std::string request_str = request.to_str();
 
-    auto lock = _current_station.lock();
-    _ctrl_socket.sendto(request_str.c_str(), request_str.length(), (*_current_station)->get_ctrl_addr());
+    if (packet_ids.size() > 0) {
+        RexmitRequest request(packet_ids);
+        std::string request_str = request.to_str();
+        _ctrl_socket.sendto(request_str.c_str(), request_str.length(), (*_current_station)->get_ctrl_addr());
+    }
 }
 
 void RexmitSenderWorker::run() {
-    std::optional<std::chrono::steady_clock::time_point> prev_rexmit_time;
+    steady_clock::time_point prev_sleep = steady_clock::now();
     while (running) {
-        sleep_until(prev_rexmit_time, _rtime);
+        std::this_thread::sleep_until(prev_sleep + _rtime);
+        prev_sleep = std::chrono::steady_clock::now();
         order_retransmission();
     }
 }

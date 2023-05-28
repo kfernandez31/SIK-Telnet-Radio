@@ -190,3 +190,6 @@ uint64_t CircularBuffer::byte0() const {
     return _byte0;
 }
 
+uint64_t CircularBuffer::print_threshold() const {
+    return _byte0 + _capacity / 4 * 3;
+}

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "../common/event_queue.hh"
 #include "../common/worker.hh"
 #include "../common/synced_ptr.hh"
 #include "../common/circular_buffer.hh"

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../common/event_pipe.hh"
+#include "../common/event_queue.hh"
 #include "../common/worker.hh"
 #include "../common/datagram.hh"
 #include "../common/udp_socket.hh"
@@ -13,7 +13,7 @@ struct AudioSenderWorker : public Worker {
 private:
     UdpSocket _data_socket;
     SyncedPtr<CircularBuffer> _packet_cache;
-    SyncedPtr<EventPipe> _my_event;
+    SyncedPtr<EventQueue> _my_event;
     size_t _psize;
     uint64_t _session_id;
 
@@ -24,7 +24,7 @@ public:
         const volatile sig_atomic_t& running, 
         const sockaddr_in& data_addr,
         const SyncedPtr<CircularBuffer>& packet_cache,
-        const SyncedPtr<EventPipe>& my_event,
+        const SyncedPtr<EventQueue>& my_event,
         const size_t psize,
         const uint64_t session_id
     );

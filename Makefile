@@ -4,35 +4,37 @@ LDFLAGS = -lboost_program_options -pthread
 INCLUDES = -I/usr/include/boost
 
 # Source files
-RECEIVER_SRCS := src/common/err.cc \
+RECEIVER_SRCS := 
+                 src/common/log.cc \
+                 src/common/err.cc \
                  src/common/except.cc \
                  src/common/net.cc \
-                 src/common/worker.cc \
                  src/common/udp_socket.cc \
                  src/common/tcp_socket.cc \
                  src/common/datagram.cc \
                  src/common/circular_buffer.cc \
                  src/common/radio_station.cc \
-                 src/common/event_pipe.cc \
+                 src/common/event_queue.cc \
                  src/receiver/rexmit_sender.cc \
                  src/receiver/audio_printer.cc \
                  src/receiver/audio_receiver.cc \
                  src/receiver/lookup_receiver.cc \
                  src/receiver/lookup_sender.cc \
                  src/receiver/station_remover.cc \
-                 src/receiver/tcp_client_handler.hh.cc \
+                 src/receiver/ui_menu.hh.cc \
                  src/receiver/tcp_server.hh.cc \
                  src/receiver/receiver.cc
 
-SENDER_SRCS := src/common/err.cc \
+SENDER_SRCS := 
+               src/common/log.cc \
+               src/common/err.cc \
                src/common/except.cc \
                src/common/net.cc \
-               src/common/worker.cc \
                src/common/udp_socket.cc \
                src/common/datagram.cc \
                src/common/circular_buffer.cc \
                src/common/radio_station.cc \
-               src/common/event_pipe.cc \
+               src/common/event_queue.cc \
                src/sender/audio_sender.cc \
                src/sender/retransmitter.cc \
                src/sender/controller.cc \

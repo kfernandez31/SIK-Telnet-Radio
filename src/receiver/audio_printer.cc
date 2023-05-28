@@ -3,38 +3,57 @@
 #include "../common/err.hh"
 
 #include <unistd.h>
+#include <poll.h>
+
+#define MY_EVENT    0
+#define NUM_POLLFDS 1
 
 AudioPrinterWorker::AudioPrinterWorker(
     const volatile sig_atomic_t& running, 
     const SyncedPtr<CircularBuffer>& buffer,
-    const SyncedPtr<EventPipe>& audio_recvr_event
+    const SyncedPtr<EventQueue>& my_event,
+    const SyncedPtr<EventQueue>& audio_receiver_event
 )
     : Worker(running)
     , _buffer(buffer)
-    , _audio_recvr_event(audio_recvr_event) 
+    , _my_event(my_event)
+    , _audio_receiver_event(audio_receiver_event)
     {}
 
 void AudioPrinterWorker::run() {
-    while (running) {
-        auto buf_lock = _buffer.lock();
-        _cv.wait(buf_lock, [&] { return !running || !_wait; });
-        if (!running)
-            break;
-
-        size_t to_print = _buffer->cnt_upto_gap() * _buffer->psize();
-        if (to_print == _buffer->range())
-            _buffer->dump_tail(to_print);
-        else {
-            auto event_lock = _audio_recvr_event.lock();
-            _audio_recvr_event->set_event(EventPipe::EventType::PACKET_LOSS);
-        }
-            
-        _wait = true;
+    pollfd poll_fds[NUM_POLLFDS];
+    poll_fds[MY_EVENT].fd = _my_event->in_fd();
+    for (size_t i = 0; i < NUM_POLLFDS; ++i) {
+        poll_fds[i].events  = POLLIN;
+        poll_fds[i].revents = 0;
     }
-}
 
-// this should be called under a mutex lock
-void AudioPrinterWorker::signal() {
-    _wait = false;
-    _cv.notify_one();
+    while (running) {
+        if (-1 == poll(poll_fds, NUM_POLLFDS, -1))
+            fatal("poll");
+
+        if (poll_fds[MY_EVENT].revents & POLLIN) {
+            poll_fds[MY_EVENT].revents = 0;
+            EventQueue::EventType event_val;
+            {
+                auto lock  = _my_event.lock();
+                event_val  = _my_event->pop();
+            }
+            switch (event_val) {
+                case EventQueue::EventType::TERMINATE:
+                    return;
+                case EventQueue::EventType::NEW_JOBS: {
+                    auto buf_lock = _buffer.lock();
+                    size_t to_print = _buffer->cnt_upto_gap() * _buffer->psize();
+                    if (to_print == _buffer->range())
+                        _buffer->dump_tail(to_print);
+                    else {
+                        auto event_lock = _audio_receiver_event.lock();
+                        _audio_receiver_event->push(EventQueue::EventType::PACKET_LOSS);
+                    }
+                }
+                default: break;
+            }
+        }
+    }
 }

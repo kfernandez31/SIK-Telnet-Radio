@@ -31,6 +31,10 @@ sockaddr_in RadioStation::get_ctrl_addr() const {
     return get_addr(mcast_addr.c_str(), ntohs(sender_addr.sin_port));
 }
 
+void RadioStation::update_last_reply() const {
+    last_reply = std::chrono::steady_clock::now();
+}
+
 bool RadioStation::operator==(const RadioStation& other) const {
     return name == other.name && sender_addr == other.sender_addr && data_port == other.data_port;
 }
