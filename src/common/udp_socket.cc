@@ -89,25 +89,25 @@ void UdpSocket::bind(const in_port_t port) {
 }
 
 void UdpSocket::write(const void* buf, const size_t nbytes) const {
-    if (nbytes != ::write(_fd, buf, nbytes))
+    if ((ssize_t)nbytes != ::write(_fd, buf, nbytes))
         fatal("write");
 }
 
 size_t UdpSocket::read(void* buf, const size_t nbytes) const {
-    size_t nread;
+    ssize_t nread;
     if (-1 == (nread = ::read(_fd, buf, nbytes)))
         fatal("read");
     return nread;
 }
 
 void UdpSocket::sendto(const void* buf, const size_t nbytes, const sockaddr_in& dst_addr) const {
-    if (nbytes != ::sendto(_fd, buf, nbytes, 0, (sockaddr*)&dst_addr, sizeof(dst_addr)))
+    if ((ssize_t)nbytes != ::sendto(_fd, buf, nbytes, 0, (sockaddr*)&dst_addr, sizeof(dst_addr)))
         fatal("sendto");
 }
 
 size_t UdpSocket::recvfrom(void* buf, const size_t nbytes, sockaddr_in& src_addr) const {
     socklen_t addr_len = sizeof(src_addr);
-    size_t nread;
+    ssize_t nread;
     if (-1 == (nread = ::recvfrom(_fd, buf, nbytes, 0, (sockaddr*)&src_addr, &addr_len)))
         fatal("recvfrom");
     return nread;

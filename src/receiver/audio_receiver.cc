@@ -78,7 +78,7 @@ void AudioReceiverWorker::handle_audio_packet(const AudioPacket& packet, bool& h
 
     log_debug("[%s] SANITY CHECK #3", name.c_str());
     if (packet.session_id > cur_session) {
-        log_info("[%s] new session %llu!", packet.session_id);
+        log_info("[%s] new session %llu!", name.c_str(), packet.session_id);
         cur_session = packet.session_id;
         has_printed = false;
         auto lock = _buffer.lock();

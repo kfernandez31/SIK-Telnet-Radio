@@ -13,7 +13,6 @@
 #include <memory>
 #include <vector>
 
-
 struct TcpServerWorker : public Worker {
 private:
     SyncedPtr<TcpClientSocketSet> _client_sockets;
@@ -35,5 +34,5 @@ public:
     );
 
     void run() override;
-    static const size_t MAX_CLIENTS = 42;
+    static inline const size_t MAX_CLIENTS = 42;
 };

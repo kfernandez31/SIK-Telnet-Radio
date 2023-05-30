@@ -50,8 +50,10 @@ bool RadioStation::cmp::operator()(const RadioStation& a, const RadioStation& b)
 bool RadioStation::is_valid_name(const std::string& name) {
     if (name.empty() || name.front() == ' ' || name.back() == ' ' || name.size() > STATION_NAME_MAX_LEN)
         return false;
-    for (const char c : name)
+    for (size_t i = 0; i < name.length(); ++i) {
+        unsigned char c = name.at(i);
         if (c < 32 || c > 127)
             return false;
+    }
     return true;
 }

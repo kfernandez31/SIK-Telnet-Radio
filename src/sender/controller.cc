@@ -29,7 +29,7 @@ ControllerWorker::ControllerWorker(
 }
 
 
-void ControllerWorker::handle_lookup_request(const sockaddr_in& src_addr, const LookupRequest& req) {
+void ControllerWorker::handle_lookup_request(const sockaddr_in& src_addr, [[maybe_unused]] const LookupRequest& req) {
     auto reply = _lookup_reply.to_str();
     _ctrl_socket.sendto(reply.c_str(), reply.size(), src_addr); // we assume this won't block, or at least not for long
 }

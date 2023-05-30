@@ -122,7 +122,7 @@ TcpClientSocket::OutStream& TcpClientSocket::OutStream::operator<<(OutStream& (*
 
 void TcpClientSocket::OutStream::write() {
     const std::string& str = ss.str();
-    if (str.length() != ::write(socket._fd, str.c_str(), str.length()))
+    if ((ssize_t)str.length() != ::write(socket._fd, str.c_str(), str.length()))
         throw RadioException("write to socket failed");
     ss.str("");
     ss.clear();

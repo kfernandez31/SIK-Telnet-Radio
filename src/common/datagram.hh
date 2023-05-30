@@ -8,6 +8,7 @@
 #include <cstddef>
 
 #include <string>
+#include <memory>
 #include <vector>
 
 #define TOTAL_PSIZE(psize)    ((psize) + 2 * sizeof(uint64_t))

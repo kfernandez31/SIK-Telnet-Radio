@@ -2,6 +2,7 @@
 
 #include "radio_station.hh"
 #include "net.hh"
+#include "endian.hh"
 #include "except.hh"
 
 #include <cctype>

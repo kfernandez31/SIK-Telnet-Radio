@@ -3,6 +3,8 @@
 #include "ui_menu.hh"
 #include "../common/except.hh"
 
+#include <cassert>
+
 #define MY_EVENT    0
 #define NETWORK     1
 #define NUM_POLLFDS 2

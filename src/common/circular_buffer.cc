@@ -8,12 +8,12 @@
 #include <algorithm>
 
 CircularBuffer::CircularBuffer(const size_t capacity) 
-    : _capacity(capacity)
+    : _abs_head(0)
+    , _byte0(0)
+    , _capacity(capacity)
     , _psize(0)
     , _tail(0)
     , _head(0)
-    , _abs_head(0)
-    , _byte0(0)
 {
     try {
         _data     = new char[capacity]();
