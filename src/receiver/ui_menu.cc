@@ -1,6 +1,5 @@
 #include "ui_menu.hh"
 
-#include "../common/err.hh"
 #include "../common/except.hh"
 #include "ui.hh"
 
@@ -19,7 +18,7 @@ UiMenuWorker::UiMenuWorker(
     const SyncedPtr<TcpClientSocketSet>& client_sockets,
     const std::shared_ptr<std::vector<pollfd>>& poll_fds
 )
-    : Worker(running) 
+    : Worker(running, "UiMenu") 
     , _stations(stations)
     , _current_station(current_station)
     , _my_event(my_event)
@@ -31,10 +30,15 @@ UiMenuWorker::UiMenuWorker(
     _command_map.emplace(ui::keys::ARROW_DOWN, [&] { cmd_move_down(); });
 }
 
+void UiMenuWorker::disconnect_client(const size_t client_id) {
+    _poll_fds->at(client_id).fd = -1;
+    _client_sockets->at(client_id)->~TcpClientSocket();
+    _client_sockets->at(client_id).reset();
+}
 
 void UiMenuWorker::run() {
     const size_t NUM_CLIENTS = _client_sockets->size();
-    const size_t MY_EVENT = 1 + NUM_CLIENTS;
+    const size_t MY_EVENT = NUM_CLIENTS;
 
     while (running) {
         if (-1 == poll(_poll_fds->data(), 1 + NUM_CLIENTS, -1))
@@ -42,41 +46,43 @@ void UiMenuWorker::run() {
         
         if (_poll_fds->at(MY_EVENT).revents & POLLIN) {
             _poll_fds->at(MY_EVENT).revents = 0;
-            EventQueue::EventType event_val;
-            {
-                auto lock  = _my_event.lock();
-                event_val  = _my_event->pop();
-            }
+            EventQueue::EventType event_val = _my_event->pop();
             switch (event_val) {
                 case EventQueue::EventType::TERMINATE:
                     return;
                 case EventQueue::EventType::STATION_ADDED:
                 case EventQueue::EventType::STATION_REMOVED:
                 case EventQueue::EventType::CURRENT_STATION_CHANGED: // intentional fall-through
+                    log_info("[%s] updating menu...", name.c_str());
                     send_to_all(menu_to_str());
                 default: break;
             }
         }
+
         auto lock = _client_sockets.lock();
-        for (size_t i = 1; i < NUM_CLIENTS; ++i) {
+        for (size_t i = 0; i < NUM_CLIENTS; ++i) {
             if (_poll_fds->at(i).fd != -1 && _poll_fds->at(i).revents & POLLIN) {
                 assert(_client_sockets->at(i).get() != nullptr);
                 _poll_fds->at(i).revents = 0;
                 if (_client_sockets->at(i)->in().eof()) {
-                    _poll_fds->at(i).fd = -1;
-                    _client_sockets->at(i)->~TcpClientSocket(); // free system resources
+                    log_info("[%s] client disconnected", name.c_str(), i);
+                    disconnect_client(i);
                 } else {
                     try {
                         std::string cmd_buf = read_cmd(*_client_sockets->at(i));
+                        log_debug("[%s] got new command from client %zu", name.c_str(), i);
                         apply_cmd(cmd_buf);
                     } catch (std::exception& e) {
-                        logerr(e.what());
+                        log_error("[%s] client error: %s. Disconnecting...", name.c_str(), e.what());
+                        disconnect_client(i);
                     }
                 }
             }
         }
     }
 }
+
+//TODO: crlf (\r) zamiast newline (\n)
 
 std::string UiMenuWorker::menu_to_str() {
     std::stringstream ss;
@@ -122,7 +128,7 @@ void UiMenuWorker::greet_telnet_client(TcpClientSocket& client) {
 
 std::string UiMenuWorker::read_cmd(TcpClientSocket& socket) {
     if (socket.in().eof())
-        throw RadioException("Client disconnected");
+        throw RadioException("Client already disconnected");
     std::string cmd_buf;
     socket.in().getline(cmd_buf);
     return cmd_buf;
@@ -139,6 +145,7 @@ void UiMenuWorker::cmd_move_up() {
     auto stations_lock        = _stations.lock();
     auto current_station_lock = _current_station.lock();
     if (*_current_station != _stations->begin()) {
+        log_info("[%s] moving menu UP", name.c_str());
         --*_current_station;
         auto event_lock = _audio_receiver_event.lock();
         _audio_receiver_event->push(EventQueue::EventType::CURRENT_STATION_CHANGED);
@@ -150,6 +157,7 @@ void UiMenuWorker::cmd_move_down() {
     auto stations_lock        = _stations.lock();
     auto current_station_lock = _current_station.lock();
     if (*_current_station != std::prev(_stations->end())) {
+        log_info("[%s] moving menu DOWN", name.c_str());  
         ++*_current_station;
         auto event_lock = _audio_receiver_event.lock();
         _audio_receiver_event->push(EventQueue::EventType::CURRENT_STATION_CHANGED);

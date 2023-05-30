@@ -1,32 +1,41 @@
 #include "audio_sender.hh"
 
-#include "../common/err.hh"
-
 #include <unistd.h>
 #include <poll.h>
 
-#define MY_EVENT    0        
+#include <thread>
+#include <chrono>
+
+#define MY_EVENT    1      
 #define NUM_POLLFDS 2
 
 AudioSenderWorker::AudioSenderWorker(
     const volatile sig_atomic_t& running, 
-    const sockaddr_in& data_addr,
+    const sockaddr_in& mcast_addr,
     const SyncedPtr<CircularBuffer>& packet_cache,
     const SyncedPtr<EventQueue>& my_event,
     const size_t psize,
     const uint64_t session_id
 ) 
-    : Worker(running) 
+    : Worker(running, "AudioSender") 
     , _packet_cache(packet_cache)
     , _my_event(my_event)
     , _psize(psize)
     , _session_id(session_id)
+    , _mcast_addr(mcast_addr)
 {
-    _data_socket.connect(data_addr);
+    _data_socket.set_mcast_ttl();
+    //TODO: ?
+    // _data_socket.set_reuseaddr();
+    // _data_socket.set_reuseport();
 }
 
-void AudioSenderWorker::send_packet(const AudioPacket& packet) {
-    _data_socket.write(packet.bytes.data(), packet.total_size());
+void AudioSenderWorker::send_packet(AudioPacket&& packet) {
+    log_debug("[%s] Sending packet %llu of size %zu and session %llu", 
+        name.c_str(), packet.first_byte_num, packet.psize, packet.session_id);
+
+    _data_socket.sendto(packet.bytes.get(), TOTAL_PSIZE(packet.psize), _mcast_addr);
+
     auto lock = _packet_cache.lock();
     _packet_cache->try_put(packet);
 }
@@ -51,14 +60,10 @@ void AudioSenderWorker::run() {
             
         if (poll_fds[MY_EVENT].revents & POLLIN) {
             poll_fds[MY_EVENT].revents = 0;
-            EventQueue::EventType event_val;
-            {
-                auto lock  = _my_event.lock();
-                event_val  = _my_event->pop();
-            }
+            EventQueue::EventType event_val = _my_event->pop();
             switch (event_val) {
                 case EventQueue::EventType::TERMINATE:
-                    assert(!running);
+                    return;
                 default: break;
             }
         }
@@ -66,13 +71,16 @@ void AudioSenderWorker::run() {
         if (poll_fds[STDIN_FILENO].revents & POLLIN) {
             poll_fds[STDIN_FILENO].revents = 0;
             ssize_t res = read(STDIN_FILENO, audio_buf + nread, _psize - nread);
+            log_debug("[%s] read %zu bytes", name.c_str(), res);
             if (res == -1)
                 fatal("read");
             if (res == 0)
                 break; // end of input or incomplete packet
             nread += res;
             if (nread == _psize) {
-                send_packet(std::move(AudioPacket(first_byte_num, _session_id, audio_buf, _psize)));
+                log_info("[%s] sending packet #%llu", name.c_str(), first_byte_num);
+                std::this_thread::sleep_for(std::chrono::milliseconds(2000));
+                send_packet(AudioPacket(_session_id, first_byte_num, audio_buf, _psize));
                 first_byte_num += _psize;
                 memset(audio_buf, 0, sizeof(audio_buf));
                 nread = 0;

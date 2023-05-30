@@ -1,7 +1,5 @@
 #include "audio_printer.hh"
 
-#include "../common/err.hh"
-
 #include <unistd.h>
 #include <poll.h>
 
@@ -14,11 +12,23 @@ AudioPrinterWorker::AudioPrinterWorker(
     const SyncedPtr<EventQueue>& my_event,
     const SyncedPtr<EventQueue>& audio_receiver_event
 )
-    : Worker(running)
+    : Worker(running, "AudioPrinter")
     , _buffer(buffer)
     , _my_event(my_event)
     , _audio_receiver_event(audio_receiver_event)
     {}
+
+void AudioPrinterWorker::handle_print() {
+    auto buf_lock = _buffer.lock();
+    size_t to_print = _buffer->cnt_upto_gap() * _buffer->psize();
+    if (to_print == _buffer->range())
+        _buffer->dump_tail(to_print);
+    else {
+        log_debug("[%s] detected packet loss!", name.c_str());
+        auto event_lock = _audio_receiver_event.lock();
+        _audio_receiver_event->push(EventQueue::EventType::PACKET_LOSS);
+    }
+}
 
 void AudioPrinterWorker::run() {
     pollfd poll_fds[NUM_POLLFDS];
@@ -34,23 +44,13 @@ void AudioPrinterWorker::run() {
 
         if (poll_fds[MY_EVENT].revents & POLLIN) {
             poll_fds[MY_EVENT].revents = 0;
-            EventQueue::EventType event_val;
-            {
-                auto lock  = _my_event.lock();
-                event_val  = _my_event->pop();
-            }
+            EventQueue::EventType event_val = _my_event->pop();
             switch (event_val) {
                 case EventQueue::EventType::TERMINATE:
                     return;
                 case EventQueue::EventType::NEW_JOBS: {
-                    auto buf_lock = _buffer.lock();
-                    size_t to_print = _buffer->cnt_upto_gap() * _buffer->psize();
-                    if (to_print == _buffer->range())
-                        _buffer->dump_tail(to_print);
-                    else {
-                        auto event_lock = _audio_receiver_event.lock();
-                        _audio_receiver_event->push(EventQueue::EventType::PACKET_LOSS);
-                    }
+                    log_debug("[%s] got new jobs!", name.c_str());
+                    handle_print();
                 }
                 default: break;
             }

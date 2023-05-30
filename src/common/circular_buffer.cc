@@ -1,5 +1,5 @@
 #include "./circular_buffer.hh"
-#include "./err.hh"
+#include "./log.hh"
 
 #include <unistd.h>
 #include <cstring>
@@ -8,7 +8,12 @@
 #include <algorithm>
 
 CircularBuffer::CircularBuffer(const size_t capacity) 
-    : _capacity(capacity), _psize(0), _tail(0), _head(0)
+    : _capacity(capacity)
+    , _psize(0)
+    , _tail(0)
+    , _head(0)
+    , _abs_head(0)
+    , _byte0(0)
 {
     try {
         _data     = new char[capacity]();
@@ -93,7 +98,7 @@ void CircularBuffer::fill_gap(const AudioPacket& packet) {
 }
 
 void CircularBuffer::try_push_head(const AudioPacket& packet) {
-    size_t head_offset = packet.first_byte_num - _abs_head;
+    uint64_t head_offset = packet.first_byte_num - _abs_head;
     assert(head_offset % _psize == 0);
     if (head_offset > _psize) // dismiss, packet is too far ahead
         return;
@@ -123,9 +128,9 @@ void CircularBuffer::try_push_head(const AudioPacket& packet) {
         size_t virt_new_head = _head + head_offset + _psize; 
         size_t new_head      = virt_new_head % rounded_cap();
         size_t new_tail      = (new_head + _psize) % rounded_cap();
-        if (virt_new_head >= rounded_cap() && ((_tail <= _head && _tail <= new_head) || _head < _tail))
+        if (virt_new_head >= rounded_cap() && ((_tail <= _head && _tail <= new_head) || _head < _tail)) 
             _tail = new_tail;
-        else if (_head < _tail && _tail <= new_head)
+        else if (_head < _tail && _tail <= new_head) 
             _tail = new_tail;
         _head = new_head;
     }
@@ -134,7 +139,7 @@ void CircularBuffer::try_push_head(const AudioPacket& packet) {
 void CircularBuffer::try_put(const AudioPacket& packet) {
     if (packet.first_byte_num < abs_tail()) // dismiss, packet is too far behind
         return;
-    if (packet.first_byte_num >= _abs_head)  // advance
+    if (packet.first_byte_num >= _abs_head)  // advance 
         try_push_head(packet);
     else // fill in a gap
         fill_gap(packet);

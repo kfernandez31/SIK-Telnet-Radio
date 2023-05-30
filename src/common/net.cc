@@ -1,6 +1,6 @@
 #include "net.hh"
 
-#include "err.hh"
+#include "log.hh"
 
 #include <netdb.h>
 
@@ -12,6 +12,12 @@ bool operator==(const sockaddr_in& a, const sockaddr_in& b) {
 
 bool operator!=(const sockaddr_in& a, const sockaddr_in& b) {
     return !(a == b);
+}
+
+bool operator<(const sockaddr_in& a, const sockaddr_in& b) {
+    if (a.sin_addr.s_addr < b.sin_addr.s_addr)
+        return true;
+    return a.sin_port < b.sin_port;
 }
 
 sockaddr_in get_addr(const char* host, const in_port_t port) {
@@ -33,11 +39,12 @@ sockaddr_in get_addr(const char* host, const in_port_t port) {
     return addr;
 }
 
-bool is_mcast_addr(const char* host, const in_port_t port) {
+std::optional<sockaddr_in> get_mcast_addr(const char* host, const in_port_t port) {
     sockaddr_in addr = {};
     addr.sin_family  = AF_INET; // IPv4
     addr.sin_port    = htons(port);
-    return 
-        1 == inet_pton(AF_INET, host, &addr.sin_addr.s_addr) 
-        && IN_MULTICAST(ntohl(addr.sin_addr.s_addr));
+    if (1 == inet_pton(AF_INET, host, &addr.sin_addr.s_addr))
+        if (IN_MULTICAST(ntohl(addr.sin_addr.s_addr)))
+            return addr;
+    return {};
 }

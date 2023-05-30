@@ -1,6 +1,6 @@
 #include "event_queue.hh"
 
-#include "err.hh"
+#include "log.hh"
 #include <unistd.h>
 
 #include "../common/synced_ptr.hh"

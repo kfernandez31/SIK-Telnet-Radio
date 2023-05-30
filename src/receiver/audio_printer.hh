@@ -13,6 +13,8 @@ private:
     SyncedPtr<CircularBuffer> _buffer;
     SyncedPtr<EventQueue> _my_event;
     SyncedPtr<EventQueue> _audio_receiver_event;
+
+    void handle_print();
 public:
     AudioPrinterWorker() = delete;
     AudioPrinterWorker(
@@ -22,5 +24,5 @@ public:
         const SyncedPtr<EventQueue>& audio_receiver_event
     );
 
-    void run() override;    
+    void run() override;
 };

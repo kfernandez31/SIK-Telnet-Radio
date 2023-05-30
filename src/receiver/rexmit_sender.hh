@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../common/event_queue.hh"
+#include "../common/udp_socket.hh"
 #include "../common/worker.hh"
 #include "../common/synced_ptr.hh"
 #include "../common/circular_buffer.hh"

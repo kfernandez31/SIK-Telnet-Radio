@@ -10,9 +10,6 @@
 
 #include <thread>
 
-int EXCEPTION_THREAD = 6;
-int HANGING_THREAD = 7;
-
 #define REXMIT_SENDER   0
 #define AUDIO_PRINTER   1
 #define AUDIO_RECEIVER  2
@@ -26,6 +23,7 @@ int HANGING_THREAD = 7;
 static volatile sig_atomic_t running = true;
 static bool signalled[NUM_WORKERS];
 static SyncedPtr<EventQueue> event_queues[NUM_WORKERS];
+static bool to_run[NUM_WORKERS] = {0, 1, 1, 1, 1, 0, 0, 0};
 
 static void terminate_worker(const int worker_id) {
     if (!signalled[worker_id]) { // ńecessary check for the handler to be reentrant
@@ -35,17 +33,17 @@ static void terminate_worker(const int worker_id) {
     }
 }
 
-static void signal_handler(int signum) { //TODO: to samo w senderze
-    logerr("Received %s. Shutting down...", strsignal(signum));
+static void signal_handler(int signum) {
+    log_debug("Received %s. Shutting down...", strsignal(signum));
     for (int i = NUM_WORKERS - 1; i >= 0; --i)
-        if (i != EXCEPTION_THREAD && i != HANGING_THREAD)
+        if (to_run[i])
             terminate_worker(i);
     running = false;
 }
 
 int main(int argc, char* argv[]) {
-    logger_init();
-    
+    logger_init(false);
+
     struct sigaction sa;
     sa.sa_handler = signal_handler;
     sigemptyset(&sa.sa_mask);
@@ -60,21 +58,23 @@ int main(int argc, char* argv[]) {
         fatal(e.what());
     }
 
-    std::shared_ptr<Worker> workers[NUM_WORKERS];
-    std::thread worker_threads[NUM_WORKERS];
-
     sockaddr_in discover_addr = get_addr(params.discover_addr.c_str(), params.ctrl_port);
     auto stations        = SyncedPtr<StationSet>::make();
     auto current_station = SyncedPtr<StationSet::iterator>::make(stations->end());
     auto buffer          = SyncedPtr<CircularBuffer>::make(params.bsize);
     auto client_sockets  = SyncedPtr<TcpClientSocketSet>::make(TcpServerWorker::MAX_CLIENTS);
-    auto tcp_poll_fds    = std::make_shared<std::vector<pollfd>>(1 + TcpServerWorker::MAX_CLIENTS);
+    auto tcp_poll_fds    = std::make_shared<std::vector<pollfd>>(TcpServerWorker::MAX_CLIENTS + 1);
+    auto ctrl_socket     = std::make_shared<UdpSocket>();
+    ctrl_socket->set_broadcast();
     for (size_t i = 0; i < tcp_poll_fds->size(); ++i) {
         tcp_poll_fds->at(i).fd      = -1;
         tcp_poll_fds->at(i).events  = POLLIN;
         tcp_poll_fds->at(i).revents = 0;
     }
     tcp_poll_fds->back().fd = event_queues[UI_MENU]->in_fd();
+
+    std::shared_ptr<Worker> workers[NUM_WORKERS];
+    std::thread worker_threads[NUM_WORKERS];
 
     workers[REXMIT_SENDER] = std::make_shared<RexmitSenderWorker>(
         running, buffer, stations, current_station, params.rtime
@@ -90,10 +90,10 @@ int main(int argc, char* argv[]) {
     workers[LOOKUP_RECEIVER] = std::make_shared<LookupReceiverWorker>(
         running, stations, current_station, event_queues[LOOKUP_RECEIVER],
         event_queues[AUDIO_RECEIVER], event_queues[UI_MENU], 
-        params.prio_station_name, params.ctrl_port
+        ctrl_socket, params.prio_station_name
     );
     workers[LOOKUP_SENDER] = std::make_shared<LookupSenderWorker>(
-        running, discover_addr
+        running, event_queues[LOOKUP_SENDER], ctrl_socket, discover_addr
     );
     workers[STATION_REMOVER] = std::make_shared<StationRemoverWorker>(
         running, stations, current_station, event_queues[AUDIO_RECEIVER],
@@ -105,20 +105,16 @@ int main(int argc, char* argv[]) {
     );
     workers[TCP_SERVER] = std::make_shared<TcpServerWorker>(
         running, client_sockets, event_queues[TCP_SERVER], tcp_poll_fds,
-        std::static_pointer_cast<UiMenuWorker>(workers[UI_MENU]),    
+        std::static_pointer_cast<UiMenuWorker>(workers[UI_MENU]),
         params.ui_port
     );
 
-    for (int i = 0; i < NUM_WORKERS; ++i) {
-        log_debug("i = %d", i);
-        std::this_thread::sleep_for(std::chrono::milliseconds(250));
-        if (i != 4 && i != EXCEPTION_THREAD && i != HANGING_THREAD)
+    for (int i = 0; i < NUM_WORKERS; ++i)
+        if (to_run[i])
             worker_threads[i] = std::thread([w = workers[i]] { w->run(); });
-        log_debug("i = %d", i);
-    }
 
     for (int i = NUM_WORKERS - 1; i >= 0; --i)
-        if (i != EXCEPTION_THREAD && i != HANGING_THREAD)
+        if (to_run[i])
             worker_threads[i].join();
 
     logger_destroy();

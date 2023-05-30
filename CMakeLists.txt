@@ -10,18 +10,18 @@ SET(CMAKE_CXX_FLAGS "-Wall -O2")
 # Find Boost libraries
 find_package(Boost REQUIRED COMPONENTS program_options REQUIRED)
 
-# Add executable for receiver
+# # Add executable for receiver
 add_executable(sikradio-receiver 
     src/common/log.cc
-    src/common/err.cc
     src/common/except.cc
     src/common/net.cc
     src/common/udp_socket.cc
     src/common/tcp_socket.cc
+    src/common/radio_station.cc
     src/common/datagram.cc
     src/common/circular_buffer.cc
-    src/common/radio_station.cc
     src/common/event_queue.cc
+
     src/receiver/rexmit_sender.cc
     src/receiver/audio_printer.cc
     src/receiver/audio_receiver.cc
@@ -38,16 +38,15 @@ target_link_libraries(sikradio-receiver pthread)
 # Add executable for sender
 add_executable(sikradio-sender
     src/common/log.cc
-    src/common/err.cc
     src/common/except.cc
     src/common/net.cc
     src/common/udp_socket.cc
+    src/common/radio_station.cc
     src/common/datagram.cc
     src/common/circular_buffer.cc
-    src/common/radio_station.cc
     src/common/event_queue.cc
-    src/sender/audio_sender.cc
     src/sender/retransmitter.cc
+    src/sender/audio_sender.cc
     src/sender/controller.cc
     src/sender/sender.cc
 )

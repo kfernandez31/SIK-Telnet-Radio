@@ -3,8 +3,10 @@
 #include <thread>
 #include <algorithm>
 
-#define REMOVAL_THRESHOLD_SECS 20
-#define REMOVAL_FREQ_MILLIS    500 //TODO: good enough?
+using namespace std::chrono;
+
+static const seconds REMOVAL_THRESHOLD = seconds(20);
+static const milliseconds REMOVAL_FREQUENCY = milliseconds(500); //TODO: good enough?
 
 using namespace std::chrono;
 
@@ -16,7 +18,7 @@ StationRemoverWorker::StationRemoverWorker(
     const SyncedPtr<EventQueue>& ui_menu_event,
     const std::optional<std::string> prio_station_name
 ) 
-    : Worker(running)
+    : Worker(running, "StationRemover")
     , _stations(stations)
     , _current_station(current_station) 
     , _audio_receiver_event(audio_receiver_event)
@@ -24,29 +26,38 @@ StationRemoverWorker::StationRemoverWorker(
     , _prio_station_name(prio_station_name)
     {}
 
-void StationRemoverWorker::run() {
-    while (running) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(REMOVAL_FREQ_MILLIS));
-        auto stations_lock        = _stations.lock();
-        auto current_station_lock = _current_station.lock();
-        bool removed_any = 0;
-        bool removed_current = false;
-        for (auto it = _stations->begin(); it != _stations->end(); ) {
-            if (steady_clock::now() - it->last_reply < seconds(REMOVAL_THRESHOLD_SECS))
-                ++it;
-            else {
-                removed_any     |= true;
-                removed_current |= (it == *_current_station);
-                it = _stations->erase(it);
-            } 
+void StationRemoverWorker::remove_inactive() {
+    log_debug("[%s] searching for dead stations...", name.c_str());
+    auto stations_lock        = _stations.lock();
+    auto current_station_lock = _current_station.lock();
+    bool removed_any = 0;
+    bool removed_current = false;
+    for (auto it = _stations->begin(); it != _stations->end(); ) {
+        if (steady_clock::now() - it->last_reply < REMOVAL_THRESHOLD)
+            ++it;
+        else {
+            removed_any     |= true;
+            removed_current |= (it == *_current_station);
+            log_info("[%s] removing %s station %s", name.c_str(), (it == *_current_station)? "(CURRENT)" : "", it->name.c_str());
+            it = _stations->erase(it);
+        } 
+    }
+    if (removed_any) {
+        auto lock = _ui_menu_event.lock();
+        _ui_menu_event->push(EventQueue::EventType::STATION_REMOVED);
+        if (removed_current) {
+            log_info("[%s] resetting current station", name.c_str());
+            reset_current_station();
         }
+    }
+}
 
-        if (removed_any) {
-            auto lock = _ui_menu_event.lock();
-            _ui_menu_event->push(EventQueue::EventType::STATION_REMOVED);
-            if (removed_current) 
-                reset_current_station();
-        }
+void StationRemoverWorker::run() {
+    steady_clock::time_point prev_sleep = steady_clock::now();
+    while (running) {
+        std::this_thread::sleep_until(prev_sleep + REMOVAL_FREQUENCY);
+        prev_sleep = steady_clock::now();
+        remove_inactive();
     }
 }
 
@@ -58,6 +69,7 @@ void StationRemoverWorker::reset_current_station() {
         for (auto it = _stations->begin(); it != _stations->end(); ++it) {
             if (it->name == _prio_station_name) {
                 prio_station = it;
+                log_debug("[%s] found my favorite station!", name.c_str());
                 break;
             }
         }
@@ -65,11 +77,15 @@ void StationRemoverWorker::reset_current_station() {
 
     if (prio_station != _stations->end()) {
         *_current_station = prio_station;
-    } else if (!_stations->empty())
+    } else if (!_stations->empty()) {
+        log_debug("[%s] resetted to beginning", name.c_str());
         *_current_station = _stations->begin();
-    else
+    } else {
+        log_debug("[%s] no stations left", name.c_str());
         *_current_station = _stations->end();
+    }
 
+    log_debug("[%s] pushing station change...", name.c_str());
     auto lock = _audio_receiver_event.lock();
     _audio_receiver_event->push(EventQueue::EventType::CURRENT_STATION_CHANGED);
 }

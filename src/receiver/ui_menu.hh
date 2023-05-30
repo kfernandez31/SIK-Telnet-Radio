@@ -32,6 +32,7 @@ private:
     void        apply_cmd(std::string& cmd_buf);
 
     void send_to_all(const std::string& msg);
+    void disconnect_client(const size_t client_id);
 public:
     UiMenuWorker() = delete;
     UiMenuWorker(

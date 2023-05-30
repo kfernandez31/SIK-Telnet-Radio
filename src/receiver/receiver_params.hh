@@ -1,6 +1,5 @@
 #pragma once
 
-#include "../common/err.hh"
 #include "../common/net.hh"
 #include "../common/except.hh"
 #include "../common/datagram.hh"

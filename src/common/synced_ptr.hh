@@ -25,6 +25,7 @@ public:
     }
 };
 
+// this is akin to Rust's Arc<Mutex<T>> :)
 template <typename T>
 struct SyncedPtr {
 private:

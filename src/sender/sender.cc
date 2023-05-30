@@ -1,8 +1,7 @@
 #include "sender_params.hh"
+#include "retransmitter.hh"
 #include "audio_sender.hh"
 #include "controller.hh"
-#include "../common/circular_buffer.hh"
-#include "../common/event_queue.hh"
 
 #include <thread>
 
@@ -12,16 +11,32 @@
 #define NUM_WORKERS   3
 
 static volatile sig_atomic_t running = true;
-static SyncedPtr<EventQueue> audio_sndr_event = SyncedPtr<EventQueue>::make();
+static bool signalled[NUM_WORKERS];
+static SyncedPtr<EventQueue> event_queues[NUM_WORKERS];
+
+//                             //  0  1  2 //TODO: remove this
+static bool to_run[NUM_WORKERS] = {1, 1, 1};
+
+static void terminate_worker(const int worker_id) {
+    if (to_run[worker_id])
+        if (!signalled[worker_id]) { // ńecessary check for the handler to be reentrant
+            event_queues[worker_id].lock();
+            signalled[worker_id] = true;
+            event_queues[worker_id]->push(EventQueue::EventType::TERMINATE);
+        }
+}
 
 static void signal_handler(int signum) {
-    logerr("Received %s. Shutting down...", strsignal(signum));
+    log_debug("Received %s. Shutting down...", strsignal(signum));
+    for (int i = NUM_WORKERS - 1; i >= 0; --i)
+        if (to_run[i])
+            terminate_worker(i);
     running = false;
-    // intentionally not under a mutex //TODO: this IS not enough
-    audio_sndr_event->push(EventQueue::EventType::TERMINATE);
 }
 
 int main(int argc, char* argv[]) {
+    logger_init(false);
+    
     struct sigaction sa;
     sa.sa_handler = signal_handler;
     sigemptyset(&sa.sa_mask);
@@ -36,31 +51,38 @@ int main(int argc, char* argv[]) {
         fatal(e.what());
     }
 
-    sockaddr_in data_addr = get_addr(params.mcast_addr.c_str(), params.data_port);
+    sockaddr_in mcast_addr = get_addr(params.mcast_addr.c_str(), params.data_port);
     auto packet_cache     = SyncedPtr<CircularBuffer>::make(params.fsize);
+    packet_cache->reset(params.psize);
     auto rexmit_job_queue = SyncedPtr<std::queue<RexmitRequest>>::make();
     
     std::shared_ptr<Worker> workers[NUM_WORKERS];
     std::thread worker_threads[NUM_WORKERS];
 
     workers[RETRANSMITTER] = std::make_shared<RetransmitterWorker>(
-        running, packet_cache, rexmit_job_queue,
-        params.session_id, params.rtime
+        running, packet_cache, rexmit_job_queue, 
+        event_queues[RETRANSMITTER], params.session_id, params.rtime
     );
     workers[CONTROLLER] = std::make_shared<ControllerWorker>(
-        running, data_addr, params.ctrl_port, params.name, 
-        std::static_pointer_cast<RetransmitterWorker>(workers[RETRANSMITTER])
+        running, event_queues[CONTROLLER], 
+        event_queues[RETRANSMITTER], rexmit_job_queue, 
+        params.mcast_addr, params.data_port, params.name,
+        params.ctrl_port
     );
     workers[AUDIO_SENDER] = std::make_shared<AudioSenderWorker>(
-        running, data_addr, packet_cache, audio_sndr_event,
-        params.psize, params.session_id
+        running, mcast_addr, packet_cache, 
+        event_queues[AUDIO_SENDER], params.psize, 
+        params.session_id
     );
 
-    for (int i = 0; i < NUM_WORKERS; ++i) 
-        worker_threads[i] = std::thread([w = workers[i]] { w->run(); });
+    for (int i = 0; i < NUM_WORKERS; ++i)
+        if (to_run[i])
+            worker_threads[i] = std::thread([w = workers[i]] { w->run(); });
 
-    for (int i = NUM_WORKERS - 1; i > 0; --i)
-        worker_threads[i].join();
+    for (int i = NUM_WORKERS - 1; i >= 0; --i)
+        if (to_run[i])
+            worker_threads[i].join();
 
+    logger_destroy();
     return 0;
 }

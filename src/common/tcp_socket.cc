@@ -1,6 +1,6 @@
 #include "tcp_socket.hh"
 
-#include "err.hh"
+#include "log.hh"
 #include "except.hh"
 
 #include <unistd.h>
@@ -57,10 +57,10 @@ TcpClientSocket::TcpClientSocket(const int fd, const size_t buf_size)
 }
 
 TcpClientSocket::~TcpClientSocket() {
-    if (-1 == shutdown(_fd, SHUT_RDWR))
-        fatal("shutdown");
-    if (-1 == ::close(_fd))
-        fatal("close");
+    if (-1 == shutdown(_fd, SHUT_RDWR) && errno)
+        log_error("shutdown: %s", strerror(errno));
+    if (-1 == ::close(_fd) && errno)
+        fatal("close: %s", strerror(errno));
 }
 
 int TcpClientSocket::fd() const {

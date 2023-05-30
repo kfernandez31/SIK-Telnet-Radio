@@ -17,6 +17,7 @@ private:
     std::optional<std::string> _prio_station_name;
 
     void reset_current_station();
+    void remove_inactive();
 public:
     StationRemoverWorker() = delete;
     StationRemoverWorker(

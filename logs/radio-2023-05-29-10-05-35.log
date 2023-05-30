@@ -1,0 +1,37 @@
+[2023-05-29 10:05:35] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:120: i = 0
+[2023-05-29 10:05:35] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:124: i = 0
+[2023-05-29 10:05:35] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:120: i = 1
+[2023-05-29 10:05:35] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:124: i = 1
+[2023-05-29 10:05:35] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:120: i = 2
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:124: i = 2
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:120: i = 3
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/rexmit_sender.cc:30: [RexmitSender] no station playing
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:124: i = 3
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:120: i = 4
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:124: i = 4
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:120: i = 5
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/rexmit_sender.cc:30: [RexmitSender] no station playing
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:124: i = 5
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:120: i = 6
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:124: i = 6
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:120: i = 7
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:124: i = 7
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/rexmit_sender.cc:30: [RexmitSender] no station playing
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/rexmit_sender.cc:30: [RexmitSender] no station playing
+[2023-05-29 10:05:36] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/station_remover.cc:35: [StationRemover] searching for dead stations...
+[2023-05-29 10:05:37] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/rexmit_sender.cc:30: [RexmitSender] no station playing
+[2023-05-29 10:05:37] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/rexmit_sender.cc:30: [RexmitSender] no station playing
+[2023-05-29 10:05:37] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/station_remover.cc:35: [StationRemover] searching for dead stations...
+[2023-05-29 10:05:37] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/rexmit_sender.cc:30: [RexmitSender] no station playing
+[2023-05-29 10:05:37] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/rexmit_sender.cc:30: [RexmitSender] no station playing
+[2023-05-29 10:05:37] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/station_remover.cc:35: [StationRemover] searching for dead stations...
+[2023-05-29 10:05:38] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/rexmit_sender.cc:30: [RexmitSender] no station playing
+[2023-05-29 10:05:38] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/station_remover.cc:35: [StationRemover] searching for dead stations...
+[2023-05-29 10:05:38] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/rexmit_sender.cc:30: [RexmitSender] no station playing
+[2023-05-29 10:05:38] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/rexmit_sender.cc:30: [RexmitSender] no station playing
+[2023-05-29 10:05:38] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/station_remover.cc:35: [StationRemover] searching for dead stations...
+[2023-05-29 10:05:38] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/rexmit_sender.cc:30: [RexmitSender] no station playing
+[2023-05-29 10:05:39] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/receiver.cc:44: Received Interrupt: 2. Shutting down...
+[2023-05-29 10:05:39] INFO  /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/tcp_server.cc:49: [TcpServer] terminating...
+[2023-05-29 10:05:39] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/lookup_receiver.cc:50: [LookupReceiver] got new event
+[2023-05-29 10:05:39] DEBUG /Users/kacper/repos/radio-take-two/SIK-1-Radio/src/receiver/audio_printer.cc:44: [AudioPrinter] terminating...

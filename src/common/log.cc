@@ -3,7 +3,6 @@
 #include <sys/stat.h>
 #include <cstddef>
 #include <cstdarg>
-#include <cstdlib>
 #include <unistd.h>
 #include <cstring>
 #include <cstdio>

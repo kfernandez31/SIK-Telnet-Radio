@@ -1,7 +1,6 @@
 #include "tcp_server.hh"
 
 #include "ui_menu.hh"
-#include "../common/err.hh"
 #include "../common/except.hh"
 
 #define MY_EVENT    0
@@ -15,7 +14,7 @@ TcpServerWorker::TcpServerWorker(
     const std::shared_ptr<std::vector<pollfd>>& client_poll_fds,
     const std::shared_ptr<UiMenuWorker>& ui_menu,
     const int ui_port
-)   : Worker(running)
+)   : Worker(running, "TcpServer")
     , _client_sockets(client_sockets) 
     , _my_event(my_event)
     , _client_poll_fds(client_poll_fds)
@@ -39,14 +38,10 @@ void TcpServerWorker::run() {
 
         if (poll_fds[MY_EVENT].revents & POLLIN) {
             poll_fds[MY_EVENT].revents = 0;
-            EventQueue::EventType event_val;
-            {
-                auto lock  = _my_event.lock();
-                event_val  = _my_event->pop();
-            }
+            EventQueue::EventType event_val = _my_event->pop();
             switch (event_val) {
                 case EventQueue::EventType::TERMINATE:
-                    assert(!running);
+                    return;
                 default: break;
             }
         }
@@ -55,7 +50,9 @@ void TcpServerWorker::run() {
             poll_fds[NETWORK].revents = 0;
             try {
                 int client_fd = _socket.accept();
+                log_info("[%s] accepted new client", name.c_str());
                 try_register_client(client_fd);
+                log_info("[%s] successfully registered client", name.c_str());
             } catch (const std::exception& e) {
                 log_error(e.what());
             }
@@ -63,11 +60,12 @@ void TcpServerWorker::run() {
     }
 }
 
+//TODO: zmienić na zlecanie joba
 void TcpServerWorker::try_register_client(const int client_fd) {
     auto lock = _client_sockets.lock();
     for (size_t i = 0; i < MAX_CLIENTS; ++i) {
-        if (_client_sockets->at(i).get() != nullptr) {
-            assert(_client_poll_fds->at(i).fd != -1);
+        if (_client_sockets->at(i).get() == nullptr) {
+            assert(_client_poll_fds->at(i).fd == -1);
             _client_poll_fds->at(i).fd    = client_fd;
             _client_sockets->at(i) = std::make_unique<TcpClientSocket>(client_fd);
             UiMenuWorker::config_telnet_client(*_client_sockets->at(i));

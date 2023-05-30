@@ -30,7 +30,8 @@ public:
     TcpClientSocket(const int fd, const size_t buf_size = DEFAULT_BUF_SIZE);
     ~TcpClientSocket();
 
-    struct InStream {
+    struct InStream { //TODO: templatki na ostream, istream
+    private:
         std::stringstream ss;
         const TcpClientSocket& socket;
         bool read();

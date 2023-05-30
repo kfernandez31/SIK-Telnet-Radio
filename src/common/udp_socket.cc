@@ -1,12 +1,12 @@
 #include "udp_socket.hh"
 
-#include "err.hh"
+#include "log.hh"
 
 #include <unistd.h>
 
 #define TTL_VALUE 4
 
-UdpSocket::UdpSocket(): _mcast_recv_enabled(false), _connected(false) {
+UdpSocket::UdpSocket() : _mcast_recv_enabled(false) {
     if (-1 == (_fd = socket(AF_INET, SOCK_DGRAM, 0)))
         fatal("socket");
     set_local_port(0);
@@ -15,9 +15,7 @@ UdpSocket::UdpSocket(): _mcast_recv_enabled(false), _connected(false) {
 UdpSocket::~UdpSocket() {
     if (_mcast_recv_enabled)
         disable_mcast_recv();
-    if (_connected && -1 == shutdown(_fd, SHUT_RDWR))
-        fatal("shutdown");
-    if (-1 == close(_fd))
+    if (_fd != -1 && -1 == close(_fd))
         fatal("close");
 }
 
@@ -36,11 +34,13 @@ void UdpSocket::set_opt(const int proto, const int type, void* val, const size_t
         fatal("setsockopt");
 }
 
+//TODO: wywalić 
 void UdpSocket::set_reuseaddr() {
     int val = 1;
     set_opt(SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 }
 
+//TODO: wywalić 
 void UdpSocket::set_reuseport() {
     int val = 1;
     set_opt(SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
@@ -51,25 +51,24 @@ void UdpSocket::set_broadcast() {
     set_opt(SOL_SOCKET, SO_BROADCAST, &val, sizeof(val));
 }
 
+//TODO: wywalić / użyć
 void UdpSocket::set_mcast_ttl() {
     int val = TTL_VALUE;
     set_opt(SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 }
 
-void UdpSocket::set_add_membership() {
-    set_opt(IPPROTO_IP, IP_DROP_MEMBERSHIP, &_ipmreq, sizeof(_ipmreq));
-}
-
 void UdpSocket::set_drop_membership() {
-    set_opt(IPPROTO_IP, IP_DROP_MEMBERSHIP, &_ipmreq, sizeof(_ipmreq));
+    log_debug("dropping membership");
+    set_opt(IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP, &_ipmreq, sizeof(_ipmreq));
 }
 
-void UdpSocket::enable_mcast_recv(const sockaddr_in& conn_addr) {
-    // local_addr.sin_port          = conn_addr.sin_port; //TODO: ???
+void UdpSocket::enable_mcast_recv(const sockaddr_in& multicast_addr, const sockaddr_in& source_addr) {
     _ipmreq.imr_interface.s_addr = INADDR_ANY;
-    _ipmreq.imr_multiaddr        = conn_addr.sin_addr;
-    _mcast_recv_enabled = true;
-    set_add_membership();
+    _ipmreq.imr_multiaddr        = multicast_addr.sin_addr;
+    _ipmreq.imr_sourceaddr       = source_addr.sin_addr;
+    _mcast_recv_enabled          = true;
+    log_debug("Adding membership");
+    set_opt(IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP, &_ipmreq, sizeof(_ipmreq));
 }
 
 void UdpSocket::disable_mcast_recv() {
@@ -85,7 +84,7 @@ void UdpSocket::connect(const sockaddr_in& conn_addr) {
 
 void UdpSocket::bind(const in_port_t port) {
     set_local_port(port);
-    if (-1 == ::bind(_fd, (sockaddr *)&local_addr, sizeof(local_addr)))
+    if (-1 == ::bind(_fd, (sockaddr*)&local_addr, sizeof(local_addr)))
         fatal("bind");
 }
 

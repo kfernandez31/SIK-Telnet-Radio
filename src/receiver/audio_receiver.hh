@@ -22,6 +22,7 @@ private:
 
     AudioPacket read_packet();
     void change_station();
+    void handle_audio_packet(const AudioPacket& packet, bool& has_printed, uint64_t& cur_session);
 public:
     AudioReceiverWorker() = delete;
     AudioReceiverWorker(
