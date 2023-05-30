@@ -14,6 +14,7 @@ CircularBuffer::CircularBuffer(const size_t capacity)
     , _psize(0)
     , _tail(0)
     , _head(0)
+    , _empty(true)
 {
     try {
         _data     = new char[capacity]();
@@ -52,6 +53,7 @@ CircularBuffer::side CircularBuffer::sideof(const size_t idx) const {
 void CircularBuffer::reset(const size_t psize) {
     _tail  = _head = 0;
     _psize = psize;
+    _empty = true;
     memset(_data, 0, _capacity);
     memset(_occupied, 0, _capacity);
 }
@@ -95,6 +97,7 @@ void CircularBuffer::fill_gap(const AudioPacket& packet) {
         pos -= rounded_cap() - _tail;
     memcpy(_data + pos, packet.audio_data(), _psize);
     _occupied[pos] = true;
+    _empty = false;
 }
 
 void CircularBuffer::try_push_head(const AudioPacket& packet) {
@@ -110,39 +113,43 @@ void CircularBuffer::try_push_head(const AudioPacket& packet) {
         _occupied[0] = true;
         _head        = _psize;
         _tail        = (_head + _psize) % rounded_cap();
+        _empty = false;
+        return;
+    } 
+    
+    _empty = false;
+    size_t write_pos = (_head + head_offset) % rounded_cap();
+
+    if (write_pos >= _head) {
+        memset(_data + _head    , 0, write_pos - _head);
+        memset(_occupied + _head, 0, write_pos - _head);
     } else {
-        size_t write_pos = (_head + head_offset) % rounded_cap();
-
-        if (write_pos >= _head) {
-            memset(_data + _head, 0, write_pos - _head);
-            memset(_occupied + _head, 0, write_pos - _head);
-        } else {
-            memset(_data + _head, 0, rounded_cap() - _head);
-            memset(_data, 0, write_pos);
-            memset(_occupied + _head, 0, rounded_cap() - _head);
-            memset(_occupied, 0, write_pos);
-        }
-        memcpy(_data + write_pos, packet.audio_data(), _psize);
-        _occupied[write_pos] = true;
-
-        size_t virt_new_head = _head + head_offset + _psize; 
-        size_t new_head      = virt_new_head % rounded_cap();
-        size_t new_tail      = (new_head + _psize) % rounded_cap();
-        if (virt_new_head >= rounded_cap() && ((_tail <= _head && _tail <= new_head) || _head < _tail)) 
-            _tail = new_tail;
-        else if (_head < _tail && _tail <= new_head) 
-            _tail = new_tail;
-        _head = new_head;
+        memset(_data + _head, 0, rounded_cap() - _head);
+        memset(_data        , 0, write_pos);
+        memset(_occupied + _head, 0, rounded_cap() - _head);
+        memset(_occupied        , 0, write_pos);
     }
+    memcpy(_data + write_pos, packet.audio_data(), _psize);
+    _occupied[write_pos] = true;
+
+    size_t virt_new_head = _head + head_offset + _psize; 
+    size_t new_head      = virt_new_head % rounded_cap();
+    size_t new_tail      = (new_head + _psize) % rounded_cap();
+    if (virt_new_head >= rounded_cap() && ((_tail <= _head && _tail <= new_head) || _head < _tail)) 
+        _tail = new_tail;
+    else if (_head < _tail && _tail <= new_head) 
+        _tail = new_tail;
+        
+    _head = new_head;
 }
 
 void CircularBuffer::try_put(const AudioPacket& packet) {
-    if (packet.first_byte_num < abs_tail()) // dismiss, packet is too far behind
-        return;
-    if (packet.first_byte_num >= _abs_head)  // advance 
-        try_push_head(packet);
-    else // fill in a gap
-        fill_gap(packet);
+    if (packet.first_byte_num < abs_tail())
+        return;  // dismiss, packet is too far behind
+    if (packet.first_byte_num >= _abs_head)
+        try_push_head(packet); // advance 
+    else 
+        fill_gap(packet); // fill in a gap
 }
 
 size_t CircularBuffer::cnt_upto_gap() const {
@@ -195,6 +202,10 @@ uint64_t CircularBuffer::byte0() const {
     return _byte0;
 }
 
-uint64_t CircularBuffer::print_threshold() const {
+uint64_t CircularBuffer::printing_threshold() const {
     return _byte0 + _capacity / 4 * 3;
+}
+
+bool CircularBuffer::empty() const {
+    return _empty;
 }

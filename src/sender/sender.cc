@@ -13,8 +13,6 @@
 static volatile sig_atomic_t running = true;
 static bool signalled[NUM_WORKERS];
 static SyncedPtr<EventQueue> event_queues[NUM_WORKERS];
-
-//                             //  0  1  2 //TODO: remove this
 static bool to_run[NUM_WORKERS] = {1, 1, 1};
 
 static void terminate_worker(const int worker_id) {
@@ -27,7 +25,7 @@ static void terminate_worker(const int worker_id) {
 }
 
 static void signal_handler(int signum) {
-    log_debug("Received %s. Shutting down...", strsignal(signum));
+    log_warn("Received %s. Shutting down...", strsignal(signum));
     for (int i = NUM_WORKERS - 1; i >= 0; --i)
         if (to_run[i])
             terminate_worker(i);
@@ -35,7 +33,7 @@ static void signal_handler(int signum) {
 }
 
 int main(int argc, char* argv[]) {
-    logger_init(false);
+    logger_init(true);
     
     struct sigaction sa;
     sa.sa_handler = signal_handler;

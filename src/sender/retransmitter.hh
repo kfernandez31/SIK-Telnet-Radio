@@ -21,7 +21,7 @@ private:
     std::chrono::milliseconds _rtime;
     UdpSocket _data_socket;
 
-    void handle_retransmission(RexmitRequest& req);
+    void handle_retransmission(RexmitRequest&& req);
 public:
     RetransmitterWorker() = delete;
     RetransmitterWorker(
@@ -33,6 +33,5 @@ public:
         const std::chrono::milliseconds rtime
     );
 
-    void emplace_job(const char* buf);
     void run() override;
 };

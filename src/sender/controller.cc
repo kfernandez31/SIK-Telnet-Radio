@@ -29,14 +29,14 @@ ControllerWorker::ControllerWorker(
 }
 
 
-void ControllerWorker::handle_lookup_request(const sockaddr_in& src_addr, [[maybe_unused]] const LookupRequest& req) {
+void ControllerWorker::handle_lookup_request(const sockaddr_in& src_addr, [[maybe_unused]] LookupRequest&& req) {
     auto reply = _lookup_reply.to_str();
     _ctrl_socket.sendto(reply.c_str(), reply.size(), src_addr); // we assume this won't block, or at least not for long
 }
 
 void ControllerWorker::handle_rexmit_request(const sockaddr_in& src_addr, RexmitRequest&& req) {
     auto jobs_lock = _rexmit_job_queue.lock();
-    _rexmit_job_queue->emplace(std::move(req));
+    _rexmit_job_queue->push(std::move(req));
     auto event_lock = _retransmitter_event.lock();
     _retransmitter_event->push(EventQueue::EventType::NEW_JOBS);
 }
@@ -75,17 +75,17 @@ void ControllerWorker::run() {
                 LookupRequest req(req_buf);
                 req_type = DatagramType::LookupRequest;
                 log_info("[%s] got lookup request", name.c_str());
-                handle_lookup_request(src_addr, req);
+                handle_lookup_request(src_addr, std::move(req));
             } catch (...) {}
             try {
-                RexmitRequest req(req_buf);
+                RexmitRequest req(src_addr, req_buf);
                 req_type = DatagramType::RexmitRequest;
-                log_info("[%s] got lookup request", name.c_str());
+                log_info("[%s] got rexmit request", name.c_str());
                 handle_rexmit_request(src_addr, std::move(req));
             } catch (...) {}
 
             if (req_type == DatagramType::None)
-                log_error("[%s] unrecognized datagram type", name.c_str());
+                log_error("[%s] unrecognized request", name.c_str());
         }
     }
 }

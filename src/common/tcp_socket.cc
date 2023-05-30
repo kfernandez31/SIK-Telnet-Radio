@@ -60,7 +60,7 @@ TcpClientSocket::~TcpClientSocket() {
     if (-1 == shutdown(_fd, SHUT_RDWR) && errno)
         log_error("shutdown: %s", strerror(errno));
     if (-1 == ::close(_fd) && errno)
-        fatal("close: %s", strerror(errno));
+        log_error("shutdown: %s", strerror(errno));
 }
 
 int TcpClientSocket::fd() const {

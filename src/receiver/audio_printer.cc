@@ -20,14 +20,19 @@ AudioPrinterWorker::AudioPrinterWorker(
 
 void AudioPrinterWorker::handle_print() {
     auto buf_lock = _buffer.lock();
-    size_t to_print = _buffer->cnt_upto_gap() * _buffer->psize();
-    if (to_print == _buffer->range())
-        _buffer->dump_tail(to_print);
-    else {
-        log_debug("[%s] detected packet loss!", name.c_str());
-        auto event_lock = _audio_receiver_event.lock();
-        _audio_receiver_event->push(EventQueue::EventType::PACKET_LOSS);
-    }
+
+    // note: we don't notify AudioReceiver 
+    // and he doesn't reset the session. 
+    // This allows for a much better user experience,
+    // less choppy sounds
+    if (!_buffer->occupied(_buffer->tail())) 
+        log_warn("[%s] detected packet loss!", name.c_str());
+    
+    size_t psize = _buffer->psize();
+    char pkt_buf[psize + 1];
+    memset(pkt_buf, 0, sizeof(pkt_buf));
+    memcpy(pkt_buf, _buffer->_data + _buffer->tail(), psize);
+    _buffer->dump_tail(_buffer->psize());
 }
 
 void AudioPrinterWorker::run() {
@@ -48,10 +53,8 @@ void AudioPrinterWorker::run() {
             switch (event_val) {
                 case EventQueue::EventType::TERMINATE:
                     return;
-                case EventQueue::EventType::NEW_JOBS: {
-                    log_debug("[%s] got new jobs!", name.c_str());
+                case EventQueue::EventType::NEW_JOBS:
                     handle_print();
-                }
                 default: break;
             }
         }

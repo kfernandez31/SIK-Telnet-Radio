@@ -70,7 +70,7 @@ void UiMenuWorker::run() {
                 } else {
                     try {
                         std::string cmd_buf = read_cmd(*_client_sockets->at(i));
-                        log_debug("[%s] got new command from client %zu", name.c_str(), i);
+                        log_debug("[%s] got new command from client %zu: %s", name.c_str(), i); //TODO: wywal
                         apply_cmd(cmd_buf);
                     } catch (std::exception& e) {
                         log_error("[%s] client error: %s. Disconnecting...", name.c_str(), e.what());
@@ -82,18 +82,16 @@ void UiMenuWorker::run() {
     }
 }
 
-//TODO: crlf (\r) zamiast newline (\n)
-
 std::string UiMenuWorker::menu_to_str() {
     std::stringstream ss;
     ss
-        << HORIZONTAL_BAR << '\n'
-        << PROGRAM_NAME   << '\n'
-        << HORIZONTAL_BAR << '\n';
+        << HORIZONTAL_BAR << ui::telnet::newline
+        << PROGRAM_NAME   << ui::telnet::newline
+        << HORIZONTAL_BAR << ui::telnet::newline;
     for (auto it = _stations->begin(); it != _stations->end(); ++it) {
         if (it == *_current_station)
             ss << HIGHLIGHT(CHOSEN_STATION_PREFIX);
-        ss << it->name << '\n';
+        ss << it->name << ui::telnet::newline;
     }
     ss << HORIZONTAL_BAR;
     return ss.str();
@@ -145,7 +143,7 @@ void UiMenuWorker::cmd_move_up() {
     auto stations_lock        = _stations.lock();
     auto current_station_lock = _current_station.lock();
     if (*_current_station != _stations->begin()) {
-        log_info("[%s] moving menu UP", name.c_str());
+        log_debug("[%s] moving menu UP", name.c_str()); //TODO: wywal
         --*_current_station;
         auto event_lock = _audio_receiver_event.lock();
         _audio_receiver_event->push(EventQueue::EventType::CURRENT_STATION_CHANGED);
@@ -157,7 +155,7 @@ void UiMenuWorker::cmd_move_down() {
     auto stations_lock        = _stations.lock();
     auto current_station_lock = _current_station.lock();
     if (*_current_station != std::prev(_stations->end())) {
-        log_info("[%s] moving menu DOWN", name.c_str());  
+        log_debug("[%s] moving menu DOWN", name.c_str());  
         ++*_current_station;
         auto event_lock = _audio_receiver_event.lock();
         _audio_receiver_event->push(EventQueue::EventType::CURRENT_STATION_CHANGED);

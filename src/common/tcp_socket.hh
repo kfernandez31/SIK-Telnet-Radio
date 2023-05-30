@@ -24,13 +24,14 @@ private:
     size_t _queue_len;
 };
 
+// note to self: this could be more elegant if it inherited from std::istream & std::ostream
 struct TcpClientSocket {
 public:
     TcpClientSocket() = delete;
     TcpClientSocket(const int fd, const size_t buf_size = DEFAULT_BUF_SIZE);
     ~TcpClientSocket();
 
-    struct InStream { //TODO: templatki na ostream, istream
+    struct InStream {
     private:
         std::stringstream ss;
         const TcpClientSocket& socket;

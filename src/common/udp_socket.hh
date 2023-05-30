@@ -28,9 +28,9 @@ public:
         return *this;
     }
 
-    void set_reuseaddr();
-    void set_reuseport();
     void set_broadcast(); 
+    void set_reuseport(); 
+    void set_reuseaddr();
     void set_mcast_ttl();
     void set_add_membership();
     void set_drop_membership();

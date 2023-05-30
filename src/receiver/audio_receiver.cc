@@ -27,11 +27,7 @@ AudioReceiverWorker::AudioReceiverWorker(
     , _current_station(current_station)
     , _my_event(my_event)
     , _audio_printer_event(audio_printer_event)
-    {
-        //TODO: ?
-        // _data_socket.set_reuseaddr();
-        // _data_socket.set_reuseport();
-    }
+    {}
 
 AudioPacket AudioReceiverWorker::read_packet() {
     char pkt_buf[UDP_MAX_DATA_SIZE + 1] = {0};
@@ -47,62 +43,43 @@ void AudioReceiverWorker::change_station() {
     auto current_station_lock = _current_station.lock();
     if (!_stations->empty()) {
         _data_socket = UdpSocket();
-         //TODO: ?
-        // _data_socket.set_reuseaddr();
-        // _data_socket.set_reuseport();
-        log_debug("file descriptor = %d", _data_socket.fd());
-        _data_socket.bind(ntohs((*_current_station)->data_addr.sin_port));
         _data_socket.enable_mcast_recv((*_current_station)->mcast_addr, (*_current_station)->data_addr);
+        _data_socket.bind(ntohs((*_current_station)->data_addr.sin_port));
     }
 }
 
-//TODO:wywalić funkcje co przyjmują jako &&
-
-#include <thread>
-#include <chrono>
-
 void AudioReceiverWorker::handle_audio_packet(const AudioPacket& packet, bool& has_printed, uint64_t& cur_session) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     if (packet.session_id < cur_session) {
-        log_debug("[%s] ignoring old session %llu...", name.c_str(), packet.session_id);
+        log_info("[%s] ignoring old session %llu...", name.c_str(), packet.session_id);
         return;
-    } else
-        log_debug("[%s] SANITY CHECK #1", name.c_str());
+    }
 
     if (_buffer->psize() > _buffer->capacity()) {
         log_info("[%s] packet size too large, ignoring session %llu...", name.c_str(), packet.session_id);
         cur_session = NO_SESSION;
         return;
-    } else
-        log_debug("[%s] SANITY CHECK #2", name.c_str());
+    }
 
-    log_debug("[%s] SANITY CHECK #3", name.c_str());
     if (packet.session_id > cur_session) {
         log_info("[%s] new session %llu!", name.c_str(), packet.session_id);
         cur_session = packet.session_id;
         has_printed = false;
         auto lock = _buffer.lock();
         _buffer->reset(packet.psize, packet.first_byte_num);
-    } else
-        log_debug("[%s] SANITY CHECK #4", name.c_str());
+    }
 
-    log_debug("[%s] SANITY CHECK #5", name.c_str());
     if (packet.first_byte_num < _buffer->byte0()) {
         log_info("[%s] packet %zu arrived too late, ignoring...", name.c_str(), packet.first_byte_num);
         return;
-    } else
-        log_debug("[%s] SANITY CHECK #6", name.c_str());
+    }
     
-    log_debug("[%s] inserting into buffer...", name.c_str());
     auto lock = _buffer.lock();
     _buffer->try_put(std::move(packet));
-    if (has_printed || packet.first_byte_num + _buffer->psize() - 1 >= _buffer->print_threshold()) {
+    if (has_printed || packet.first_byte_num + _buffer->psize() - 1 >= _buffer->printing_threshold()) {
         has_printed |= true;
         _audio_printer_event.lock();
-        log_debug("[%s] delegating print", name.c_str());
         _audio_printer_event->push(EventQueue::EventType::NEW_JOBS);
-    } else
-        log_debug("[%s] SANITY CHECK #7", name.c_str());
+    }
 }
 
 void AudioReceiverWorker::run() {
@@ -121,7 +98,6 @@ void AudioReceiverWorker::run() {
             fatal("poll");
 
         if (poll_fds[MY_EVENT].revents & POLLIN) {
-            log_debug("[%s] got new event", name.c_str());
             poll_fds[MY_EVENT].revents = 0;
             EventQueue::EventType event_val = _my_event->pop();
             switch (event_val) {
@@ -131,7 +107,6 @@ void AudioReceiverWorker::run() {
                     log_info("[%s] changing station", name.c_str());
                     change_station();
                     poll_fds[NETWORK].fd = _data_socket.fd();
-                case EventQueue::EventType::PACKET_LOSS: // intentional fall-through
                     cur_session = NO_SESSION;
                 default: break;
             }
@@ -139,11 +114,8 @@ void AudioReceiverWorker::run() {
 
         if (poll_fds[NETWORK].revents & POLLIN) {
             poll_fds[NETWORK].revents = 0;
-            log_debug("[%s] new packet detected", name.c_str());
             try {
                 AudioPacket packet = read_packet();
-                log_debug("[%s] got a new packet!", name.c_str());
-                log_debug("[%s] (num = %llu, size = %zu, session = %llu)", name.c_str(), packet.first_byte_num, packet.psize, packet.session_id);
                 handle_audio_packet(std::move(packet), has_printed, cur_session);
             } catch (std::exception& e) {
                 log_error("[%s] failed to read packet: %s", name.c_str(), e.what());

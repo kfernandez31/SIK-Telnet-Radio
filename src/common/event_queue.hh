@@ -15,7 +15,6 @@ public:
         STATION_ADDED,
         STATION_REMOVED,
         NEW_JOBS,
-        PACKET_LOSS,
         TERMINATE,
     };
 

@@ -68,8 +68,8 @@ void TcpServerWorker::try_register_client(const int client_fd) {
     for (size_t i = 0; i < MAX_CLIENTS; ++i) {
         if (_client_sockets->at(i).get() == nullptr) {
             assert(_client_poll_fds->at(i).fd == -1);
-            _client_poll_fds->at(i).fd    = client_fd;
-            _client_sockets->at(i) = std::make_unique<TcpClientSocket>(client_fd);
+            _client_poll_fds->at(i).fd = client_fd;
+            _client_sockets->at(i)     = std::make_unique<TcpClientSocket>(client_fd);
             UiMenuWorker::config_telnet_client(*_client_sockets->at(i));
             _ui_menu->greet_telnet_client(*_client_sockets->at(i));
             return;

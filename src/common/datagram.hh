@@ -41,9 +41,9 @@ struct RexmitRequest {
     sockaddr_in receiver_addr;
     std::vector<uint64_t> packet_ids;
 
-    RexmitRequest(const std::string& str);
+    RexmitRequest(const sockaddr_in& receiver_addr, const std::string& str);
+    RexmitRequest(const sockaddr_in& receiver_addr, const std::vector<uint64_t>& packet_ids);
     RexmitRequest(RexmitRequest&& other);
-    RexmitRequest(const std::vector<uint64_t>& packet_ids);
 
     std::string to_str() const;
 };

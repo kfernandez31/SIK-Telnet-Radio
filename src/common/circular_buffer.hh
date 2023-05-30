@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <vector>
+
 class CircularBuffer {
 public:
     CircularBuffer(const size_t capacity);
@@ -27,12 +29,14 @@ public:
     uint64_t abs_head() const;
     uint64_t abs_tail() const;
     uint64_t byte0() const;
-    uint64_t print_threshold() const;
+    uint64_t printing_threshold() const;
+    bool empty() const;
+    char* _data;
 private:
     uint64_t _abs_head, _byte0;
     size_t _capacity, _psize, _tail, _head;
     bool*  _occupied;
-    char* _data;
+    bool _empty;
 
     enum side  { NONE, LEFT, RIGHT, };
     side sideof(const size_t idx) const;

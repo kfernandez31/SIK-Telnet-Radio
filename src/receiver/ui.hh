@@ -3,16 +3,18 @@
 namespace ui {
     namespace telnet {
         namespace commands {
-            const int WILL = 251;
-            const int DO   = 253;
-            const int IAC  = 255;
+            const unsigned char WILL = 251;
+            const unsigned char DO   = 253;
+            const unsigned char IAC  = 255;
         }
         
         namespace options {
-            const int ECHO     = 1;
-            const int NAOFFD   = 13;
-            const int LINEMODE = 34;
+            const unsigned char ECHO     = 1;
+            const unsigned char NAOFFD   = 13;
+            const unsigned char LINEMODE = 34;
         }
+
+        const char* newline = "\r\n";
     }
 
     namespace keys {
@@ -28,7 +30,7 @@ namespace ui {
     }
 }
 
-#define HIGHLIGHT(msg)  msg
+#define HIGHLIGHT(msg) msg
 //TODO:
 // #define HIGHLIGHT(msg)               \
 //     ui::display::YELOW_BACKGROUND << \

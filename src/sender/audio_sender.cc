@@ -9,6 +9,28 @@
 #define MY_EVENT    1      
 #define NUM_POLLFDS 2
 
+//TODO:
+// Credits: Hubert Lubański
+// static bool simulate_interference() {
+//     static const int max_lost_per_burst = 8;
+//     static const int min_lost_per_burst = 1;
+//     static const int min_without_loss   = 400;
+//     static const int interference_noise = 50;
+//     static int counter = 0, p = max_lost_per_burst;
+//     static int T = min_without_loss + interference_noise;
+
+//     if (++counter + p != T)
+//         return false;
+//     if (p != 0)
+//         p--;
+//     else {
+//         p = min_lost_per_burst + rand() % (max_lost_per_burst - min_lost_per_burst);
+//         counter = 0;
+//         T = min_without_loss + rand() % interference_noise;
+//     }
+//     return true;
+// }
+
 AudioSenderWorker::AudioSenderWorker(
     const volatile sig_atomic_t& running, 
     const sockaddr_in& mcast_addr,
@@ -25,17 +47,10 @@ AudioSenderWorker::AudioSenderWorker(
     , _mcast_addr(mcast_addr)
 {
     _data_socket.set_mcast_ttl();
-    //TODO: ?
-    // _data_socket.set_reuseaddr();
-    // _data_socket.set_reuseport();
 }
 
 void AudioSenderWorker::send_packet(AudioPacket&& packet) {
-    log_debug("[%s] Sending packet %llu of size %zu and session %llu", 
-        name.c_str(), packet.first_byte_num, packet.psize, packet.session_id);
-
     _data_socket.sendto(packet.bytes.get(), TOTAL_PSIZE(packet.psize), _mcast_addr);
-
     auto lock = _packet_cache.lock();
     _packet_cache->try_put(packet);
 }
@@ -71,7 +86,6 @@ void AudioSenderWorker::run() {
         if (poll_fds[STDIN_FILENO].revents & POLLIN) {
             poll_fds[STDIN_FILENO].revents = 0;
             ssize_t res = read(STDIN_FILENO, audio_buf + nread, _psize - nread);
-            log_debug("[%s] read %zu bytes", name.c_str(), res);
             if (res == -1)
                 fatal("read");
             if (res == 0)
@@ -79,7 +93,6 @@ void AudioSenderWorker::run() {
             nread += res;
             if (nread == _psize) {
                 log_info("[%s] sending packet #%llu", name.c_str(), first_byte_num);
-                std::this_thread::sleep_for(std::chrono::milliseconds(2000));
                 send_packet(AudioPacket(_session_id, first_byte_num, audio_buf, _psize));
                 first_byte_num += _psize;
                 memset(audio_buf, 0, sizeof(audio_buf));

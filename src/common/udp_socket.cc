@@ -34,16 +34,14 @@ void UdpSocket::set_opt(const int proto, const int type, void* val, const size_t
         fatal("setsockopt");
 }
 
-//TODO: wywalić 
-void UdpSocket::set_reuseaddr() {
-    int val = 1;
-    set_opt(SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
-}
-
-//TODO: wywalić 
 void UdpSocket::set_reuseport() {
     int val = 1;
     set_opt(SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
+}
+
+void UdpSocket::set_reuseaddr() {
+    int val = 1;
+    set_opt(SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
 }
 
 void UdpSocket::set_broadcast() {
@@ -51,7 +49,6 @@ void UdpSocket::set_broadcast() {
     set_opt(SOL_SOCKET, SO_BROADCAST, &val, sizeof(val));
 }
 
-//TODO: wywalić / użyć
 void UdpSocket::set_mcast_ttl() {
     int val = TTL_VALUE;
     set_opt(SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));

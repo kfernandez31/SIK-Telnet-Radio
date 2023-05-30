@@ -6,6 +6,7 @@
 
 #include <thread>
 #include <optional>
+#include <sstream>
 
 using namespace std::chrono;
 
@@ -28,20 +29,23 @@ RetransmitterWorker::RetransmitterWorker(
     , _rtime(rtime)
     {}
 
-void RetransmitterWorker::handle_retransmission(RexmitRequest& req) {
+void RetransmitterWorker::handle_retransmission(RexmitRequest&& req) {
     char pkt_buf[TOTAL_PSIZE(_packet_cache->psize())];
     memcpy(pkt_buf, &_session_id, sizeof(_session_id));
 
-    auto lock = _packet_cache.lock();
     std::sort(req.packet_ids.begin(), req.packet_ids.end());
 
     auto it = req.packet_ids.begin();
     // skip packets before the tail
+    auto lock = _packet_cache.lock();
     while (it != req.packet_ids.end() && *it < _packet_cache->abs_tail())
         ++it;
     if (it == req.packet_ids.end())
         return; // nothing to do
     
+
+    std::vector<uint64_t> retransmitted_ids;
+    // this could have been optimized by copying the buffer or somehow locking it in the loop
     uint64_t cache_packet_num = _packet_cache->abs_tail();
     size_t cache_idx = _packet_cache->tail();
     for (; it != req.packet_ids.end(); ++it) {        
@@ -49,12 +53,24 @@ void RetransmitterWorker::handle_retransmission(RexmitRequest& req) {
             cache_packet_num += _packet_cache->psize();
             cache_idx = (cache_idx + _packet_cache->psize()) % _packet_cache->rounded_cap();
         }
-        if (cache_packet_num != _packet_cache->abs_head())
-            break; // no more packets in cache (this shouldn't really happen)
+        if (cache_packet_num != _packet_cache->abs_head()) 
+            break; // no more packets in cache
         memcpy(pkt_buf + sizeof(uint64_t), &cache_packet_num, sizeof(uint64_t));
         memcpy(pkt_buf + 2 * sizeof(uint64_t), _packet_cache->data() + cache_idx, _packet_cache->psize());
         _data_socket.sendto(pkt_buf, sizeof(pkt_buf), req.receiver_addr);
+        retransmitted_ids.push_back(cache_packet_num);
     }
+
+
+    std::ostringstream oss;
+    oss << "[";
+    if (!retransmitted_ids.empty()) {
+        oss << retransmitted_ids.front();
+        for (size_t i = 1; i < retransmitted_ids.size(); ++i)
+            oss << ", " << retransmitted_ids[i];
+    }
+    oss << "]";
+    log_info("[%s] retransmitted packets : %s", name.c_str(), oss.str().c_str());
 }
 
 void RetransmitterWorker::run() {
@@ -77,7 +93,6 @@ void RetransmitterWorker::run() {
                 case EventQueue::EventType::TERMINATE:
                     return;
                 case EventQueue::EventType::NEW_JOBS: {
-                    log_info("[%s] got new jobs", name.c_str());
                     size_t new_jobs;
                     {
                         auto lock = _job_queue.lock();
@@ -87,8 +102,7 @@ void RetransmitterWorker::run() {
                     prev_sleep = steady_clock::now();
 
                     while (new_jobs--) {
-                        log_info("[%s] retransmitting...", name.c_str());
-                        handle_retransmission(_job_queue->front());
+                        handle_retransmission(std::move(_job_queue->front()));
                         _job_queue->pop();
                     }
                 }

@@ -31,7 +31,7 @@ LookupReceiverWorker::LookupReceiverWorker(
 
 void LookupReceiverWorker::handle_lookup_reply(LookupReply& reply, const sockaddr_in& src_addr) {
     RadioStation station(src_addr, reply);
-    log_debug("[%s] %u responsed: [\n mcast_addr = %s,\n data_port = %hu,\n name = %s]", name.c_str(), ntohs(src_addr.sin_addr.s_addr), reply.mcast_addr.c_str(), reply.data_port, reply.name.c_str());
+    log_info("[%s] %u responded: [mcast_addr = %s, data_port = %hu, name = %s]", name.c_str(), ntohs(src_addr.sin_addr.s_addr), reply.mcast_addr.c_str(), reply.data_port, reply.name.c_str());
     auto stations_lock = _stations.lock();
     auto it = _stations->find(station);
     if (it != _stations->end()) {
@@ -42,7 +42,6 @@ void LookupReceiverWorker::handle_lookup_reply(LookupReply& reply, const sockadd
         if (_stations->size() == 0 || _prio_station_name == station.name) {
             auto current_station_lock = _current_station.lock();
             (*_current_station) = _stations->insert(station).first;
-            log_debug("[%s] station change detected", name.c_str());
             auto lock = _audio_receiver_event.lock();
             _audio_receiver_event->push(EventQueue::EventType::CURRENT_STATION_CHANGED);
         }
@@ -66,7 +65,6 @@ void LookupReceiverWorker::run() {
             fatal("poll");
 
         if (poll_fds[MY_EVENT].revents & POLLIN) {
-            log_debug("[%s] got new event", name.c_str());
             poll_fds[MY_EVENT].revents = 0;
             EventQueue::EventType event_val = _my_event->pop();
             switch (event_val) {
@@ -78,7 +76,6 @@ void LookupReceiverWorker::run() {
 
         if (poll_fds[NETWORK].revents & POLLIN) {
             poll_fds[NETWORK].revents = 0;
-            log_info("[%s] got new response: %s", name.c_str(), reply_buf);
             sockaddr_in src_addr;
             size_t nread = _ctrl_socket->recvfrom(reply_buf, sizeof(reply_buf) - 1, src_addr);
             log_debug("[%s] read %zu bytes: %s", name.c_str(), nread, reply_buf);

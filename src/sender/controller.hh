@@ -21,7 +21,7 @@ private:
     UdpSocket _ctrl_socket;
     LookupReply _lookup_reply;
 
-    void handle_lookup_request(const sockaddr_in& src_addr, [[maybe_unused]] const LookupRequest& req);
+    void handle_lookup_request(const sockaddr_in& src_addr, [[maybe_unused]] LookupRequest&& req);
     void handle_rexmit_request(const sockaddr_in& src_addr, RexmitRequest&& req);
 public:
     ControllerWorker() = delete;

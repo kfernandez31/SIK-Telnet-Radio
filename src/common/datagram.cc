@@ -51,10 +51,8 @@ LookupReply::LookupReply(const std::string& str) {
     size_t space_pos = input.find(FIELD_SEPARATOR);
     if (space_pos != LookupReply::prefix.length())
         throw RadioException("Invalid format");
-    if (input.substr(0, space_pos) != LookupReply::prefix) {
-        log_error("pref = '%s'", input.substr(0, space_pos).c_str());
+    if (input.substr(0, space_pos) != LookupReply::prefix) 
         throw RadioException("Invalid prefix");
-    }
     input = input.substr(space_pos + 1);
 
     // mcast_addr
@@ -95,7 +93,9 @@ std::string LookupReply::to_str() const {
 
 //----------------------------RexmitRequest------------------------------------
 
-RexmitRequest::RexmitRequest(const std::string& str) {
+RexmitRequest::RexmitRequest(const sockaddr_in& receiver_addr, const std::string& str)
+    : receiver_addr(receiver_addr)
+{
     std::string input = trimmed(str);
 
     if (!isdigit(input.back()) && input.back() != FIELD_SEPARATOR)
@@ -120,13 +120,14 @@ RexmitRequest::RexmitRequest(const std::string& str) {
 }
 
 RexmitRequest::RexmitRequest(RexmitRequest&& other)
-    : receiver_addr(std::move(other.receiver_addr))
+    : receiver_addr(other.receiver_addr)
     , packet_ids(std::move(other.packet_ids))
     {}
 
-
-RexmitRequest::RexmitRequest(const std::vector<uint64_t>& packet_ids)
-    : packet_ids(packet_ids) {}
+RexmitRequest::RexmitRequest(const sockaddr_in& receiver_addr, const std::vector<uint64_t>& packet_ids)
+    : receiver_addr(receiver_addr)
+    , packet_ids(packet_ids) 
+    {}
 
 std::string RexmitRequest::to_str() const {
     std::ostringstream oss;

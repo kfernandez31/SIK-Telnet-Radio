@@ -13,6 +13,5 @@ bool operator==(const sockaddr_in& a, const sockaddr_in& b);
 bool operator!=(const sockaddr_in& a, const sockaddr_in& b);
 bool operator<(const sockaddr_in& a, const sockaddr_in& b);
 
-
 sockaddr_in get_addr(const char* host, const in_port_t port);
 std::optional<sockaddr_in> get_mcast_addr(const char* host, const in_port_t port);

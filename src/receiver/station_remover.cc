@@ -27,7 +27,6 @@ StationRemoverWorker::StationRemoverWorker(
     {}
 
 void StationRemoverWorker::remove_inactive() {
-    log_debug("[%s] searching for dead stations...", name.c_str());
     auto stations_lock        = _stations.lock();
     auto current_station_lock = _current_station.lock();
     bool removed_any = 0;
@@ -38,7 +37,7 @@ void StationRemoverWorker::remove_inactive() {
         else {
             removed_any     |= true;
             removed_current |= (it == *_current_station);
-            log_info("[%s] removing %s station %s", name.c_str(), (it == *_current_station)? "(CURRENT)" : "", it->name.c_str());
+            log_info("[%s] removing %s station: %s", name.c_str(), (it == *_current_station)? "(current)" : "", it->name.c_str());
             it = _stations->erase(it);
         } 
     }
@@ -63,13 +62,14 @@ void StationRemoverWorker::run() {
 
 // this should be called under a mutex lock
 void StationRemoverWorker::reset_current_station() {
+    //TODO: wywal logi
     StationSet::iterator prio_station = _stations->end();
 
     if (_prio_station_name) {
         for (auto it = _stations->begin(); it != _stations->end(); ++it) {
             if (it->name == _prio_station_name) {
                 prio_station = it;
-                log_debug("[%s] found my favorite station!", name.c_str());
+                log_debug("[%s] found my favorite station!", name.c_str()); 
                 break;
             }
         }
@@ -78,14 +78,13 @@ void StationRemoverWorker::reset_current_station() {
     if (prio_station != _stations->end()) {
         *_current_station = prio_station;
     } else if (!_stations->empty()) {
-        log_debug("[%s] resetted to beginning", name.c_str());
+        log_debug("[%s] resetted to first station", name.c_str());
         *_current_station = _stations->begin();
     } else {
-        log_debug("[%s] no stations left", name.c_str());
+        log_info("[%s] no stations left. Going silent...", name.c_str());
         *_current_station = _stations->end();
     }
 
-    log_debug("[%s] pushing station change...", name.c_str());
     auto lock = _audio_receiver_event.lock();
     _audio_receiver_event->push(EventQueue::EventType::CURRENT_STATION_CHANGED);
 }
