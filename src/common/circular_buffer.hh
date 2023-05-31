@@ -31,10 +31,10 @@ public:
     uint64_t byte0() const;
     uint64_t printing_threshold() const;
     bool empty() const;
-    char* _data;
 private:
     uint64_t _abs_head, _byte0;
     size_t _capacity, _psize, _tail, _head;
+    char* _data;
     bool*  _occupied;
     bool _empty;
 

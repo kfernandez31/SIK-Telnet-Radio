@@ -50,7 +50,8 @@ AudioSenderWorker::AudioSenderWorker(
 }
 
 void AudioSenderWorker::send_packet(AudioPacket&& packet) {
-    _data_socket.sendto(packet.bytes.get(), TOTAL_PSIZE(packet.psize), _mcast_addr);
+    if (TOTAL_PSIZE(packet.psize) != _data_socket.sendto(packet.bytes.get(), TOTAL_PSIZE(packet.psize), _mcast_addr))
+        fatal("[%s] unable to send audio packet", name.c_str());
     auto lock = _packet_cache.lock();
     _packet_cache->try_put(packet);
 }

@@ -1,6 +1,6 @@
 CXX := g++
 CXXFLAGS := -std=c++20 -Wall -Wextra -Og -g -pedantic
-# -O2
+# -O2 TODO: 
 LDFLAGS = -lboost_program_options -pthread
 INCLUDES = -I/usr/include/boost
 
@@ -22,7 +22,6 @@ RECEIVER_SRCS := \
     src/receiver/lookup_sender.cc \
     src/receiver/station_remover.cc \
     src/receiver/ui_menu.cc \
-    src/receiver/tcp_server.cc \
     src/receiver/receiver.cc \
 
 SENDER_SRCS := \

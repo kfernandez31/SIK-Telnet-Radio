@@ -12,7 +12,8 @@
 //----------------------------TcpServerSocket------------------------------------
 
 TcpServerSocket::TcpServerSocket(const in_port_t port, const size_t queue_len)
-    : _queue_len(queue_len)
+    : _port(port)
+    , _queue_len(queue_len)
 {
     if (-1 == (_fd = socket(PF_INET, SOCK_STREAM, 0)))
         fatal("socket");
@@ -20,7 +21,7 @@ TcpServerSocket::TcpServerSocket(const in_port_t port, const size_t queue_len)
     sockaddr_in server_addr;
     server_addr.sin_family      = AF_INET;
     server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port        = htons(port);
+    server_addr.sin_port        = htons(_port);
     if (-1 == bind(_fd, (sockaddr*)&server_addr, sizeof(server_addr)))
         fatal("bind");
 }
@@ -38,14 +39,15 @@ void TcpServerSocket::listen() {
 int TcpServerSocket::accept() {
     sockaddr_in client_addr;
     socklen_t client_addr_len = sizeof(client_addr);
-    int client_socket = ::accept(_fd, (sockaddr*)&client_addr, &client_addr_len);
-    if (-1 == client_socket)
-        throw RadioException("Accepting a new connection failed");
-    return client_socket;
+    return ::accept(_fd, (sockaddr*)&client_addr, &client_addr_len);
 }
 
 int TcpServerSocket::fd() const {
     return _fd;
+}
+
+in_port_t TcpServerSocket::port() const {
+    return _port;
 }
 
 //----------------------------TcpClientSocket------------------------------------
@@ -80,31 +82,34 @@ TcpClientSocket::OutStream& TcpClientSocket::out() {
 TcpClientSocket::InStream::InStream(const TcpClientSocket& socket)
     : socket(socket) {}
 
-bool TcpClientSocket::InStream::read() {
+void TcpClientSocket::InStream::read() {
     ssize_t nread = ::read(socket._fd, socket._buf.get(), socket._buf_size);
     if (nread == -1)
         fatal("read");
-    if (nread == 0)
-        return false;
-    socket._buf[nread] = '\0';
-    ss.str("");
-    ss.clear();
-    ss << socket._buf.get();
-    return true;
+    if (nread == 0) {
+        _eof_bit = true;
+    } else {
+        socket._buf[nread] = '\0';
+        ss.clear();
+        ss.str(socket._buf.get());
+    }
 }
 
 TcpClientSocket::InStream& TcpClientSocket::InStream::getline(std::string& str_buf) {
-  if (ss.eof())
-    str_buf.clear();
-  else {
-    std::getline(ss, str_buf);
-    ss.get(); // set EOF
-  }
-  return *this;
+    if (ss.eof()) {
+        log_debug("branch 1");
+        str_buf.clear();
+    }
+    else {
+        log_debug("branch 2");
+        std::getline(ss, str_buf);
+        ss.get(); // set EOF
+    }
+    return *this;
 }
 
 bool TcpClientSocket::InStream::eof() {
-    return ss.eof() && !read();
+    return _eof_bit;
 }
 
 //----------------------------OutStream------------------------------------

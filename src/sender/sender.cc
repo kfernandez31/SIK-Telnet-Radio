@@ -13,27 +13,24 @@
 static volatile sig_atomic_t running = true;
 static bool signalled[NUM_WORKERS];
 static SyncedPtr<EventQueue> event_queues[NUM_WORKERS];
-static bool to_run[NUM_WORKERS] = {1, 1, 1};
 
 static void terminate_worker(const int worker_id) {
-    if (to_run[worker_id])
-        if (!signalled[worker_id]) { // ńecessary check for the handler to be reentrant
-            event_queues[worker_id].lock();
-            signalled[worker_id] = true;
-            event_queues[worker_id]->push(EventQueue::EventType::TERMINATE);
-        }
+    if (!signalled[worker_id]) { // ńecessary check for the handler to be reentrant
+        event_queues[worker_id].lock();
+        signalled[worker_id] = true;
+        event_queues[worker_id]->push(EventQueue::EventType::TERMINATE);
+    }
 }
 
 static void signal_handler(int signum) {
     log_warn("Received %s. Shutting down...", strsignal(signum));
     for (int i = NUM_WORKERS - 1; i >= 0; --i)
-        if (to_run[i])
-            terminate_worker(i);
+        terminate_worker(i);
     running = false;
 }
 
 int main(int argc, char* argv[]) {
-    logger_init(true);
+    logger_init(false);
     
     struct sigaction sa;
     sa.sa_handler = signal_handler;
@@ -74,12 +71,17 @@ int main(int argc, char* argv[]) {
     );
 
     for (int i = 0; i < NUM_WORKERS; ++i)
-        if (to_run[i])
-            worker_threads[i] = std::thread([w = workers[i]] { w->run(); });
+        worker_threads[i] = std::thread([w = workers[i]] { w->run(); });
+    
+    worker_threads[AUDIO_SENDER].join();
+    // when the sender terminiates, the remaining workers should too
+    raise(SIGINT);
+    for (int i = NUM_WORKERS - 2; i >= 0; --i)
+        worker_threads[i].join();
 
-    for (int i = NUM_WORKERS - 1; i >= 0; --i)
-        if (to_run[i])
-            worker_threads[i].join();
+
+    worker_threads[CONTROLLER].join();
+    worker_threads[RETRANSMITTER].join();  
 
     logger_destroy();
     return 0;

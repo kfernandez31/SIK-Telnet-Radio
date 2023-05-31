@@ -12,7 +12,6 @@ struct AudioPrinterWorker : public Worker {
 private:
     SyncedPtr<CircularBuffer> _buffer;
     SyncedPtr<EventQueue> _my_event;
-    SyncedPtr<EventQueue> _audio_receiver_event;
 
     void handle_print();
 public:
@@ -20,8 +19,7 @@ public:
     AudioPrinterWorker(
         const volatile sig_atomic_t& running, 
         const SyncedPtr<CircularBuffer>& buffer,
-        const SyncedPtr<EventQueue>& my_event,
-        const SyncedPtr<EventQueue>& audio_receiver_event
+        const SyncedPtr<EventQueue>& my_event
     );
 
     void run() override;

@@ -9,29 +9,19 @@
 AudioPrinterWorker::AudioPrinterWorker(
     const volatile sig_atomic_t& running, 
     const SyncedPtr<CircularBuffer>& buffer,
-    const SyncedPtr<EventQueue>& my_event,
-    const SyncedPtr<EventQueue>& audio_receiver_event
+    const SyncedPtr<EventQueue>& my_event
 )
     : Worker(running, "AudioPrinter")
     , _buffer(buffer)
     , _my_event(my_event)
-    , _audio_receiver_event(audio_receiver_event)
     {}
 
 void AudioPrinterWorker::handle_print() {
     auto buf_lock = _buffer.lock();
-
-    // note: we don't notify AudioReceiver 
-    // and he doesn't reset the session. 
-    // This allows for a much better user experience,
-    // less choppy sounds
+    // note: we don't notify AudioReceiver and he doesn't reset the session. 
+    // This allows for a much better user experience, less choppy sound, just occasional silence
     if (!_buffer->occupied(_buffer->tail())) 
         log_warn("[%s] detected packet loss!", name.c_str());
-    
-    size_t psize = _buffer->psize();
-    char pkt_buf[psize + 1];
-    memset(pkt_buf, 0, sizeof(pkt_buf));
-    memcpy(pkt_buf, _buffer->_data + _buffer->tail(), psize);
     _buffer->dump_tail(_buffer->psize());
 }
 

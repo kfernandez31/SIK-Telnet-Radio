@@ -57,7 +57,8 @@ void RetransmitterWorker::handle_retransmission(RexmitRequest&& req) {
             break; // no more packets in cache
         memcpy(pkt_buf + sizeof(uint64_t), &cache_packet_num, sizeof(uint64_t));
         memcpy(pkt_buf + 2 * sizeof(uint64_t), _packet_cache->data() + cache_idx, _packet_cache->psize());
-        _data_socket.sendto(pkt_buf, sizeof(pkt_buf), req.receiver_addr);
+        if (sizeof(pkt_buf) != _data_socket.sendto(pkt_buf, sizeof(pkt_buf), req.receiver_addr))
+            fatal("[%s], packet retransmission failed", name.c_str());
         retransmitted_ids.push_back(cache_packet_num);
     }
 

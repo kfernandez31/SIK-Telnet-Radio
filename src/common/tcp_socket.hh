@@ -17,10 +17,12 @@ public:
 
     void listen();
     int  accept();
-    int fd() const;
+    in_port_t port() const;
+    int       fd() const;
 private:
     static const size_t DEFAULT_QUEUE_LEN = 42;
     int _fd;
+    in_port_t _port;
     size_t _queue_len;
 };
 
@@ -35,7 +37,8 @@ public:
     private:
         std::stringstream ss;
         const TcpClientSocket& socket;
-        bool read();
+        bool _eof_bit = false;
+        void read();
     public:
         InStream() = delete;
         InStream(const TcpClientSocket& socket);
@@ -83,5 +86,3 @@ private:
     size_t _buf_size;
     std::unique_ptr<char[]> _buf;
 };
-
-using TcpClientSocketSet = std::vector<std::unique_ptr<TcpClientSocket>>;

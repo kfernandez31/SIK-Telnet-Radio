@@ -7,6 +7,8 @@
 
 using namespace std::chrono;
 
+static const seconds SENDING_TIMEOUT = seconds(1);
+
 RexmitSenderWorker::RexmitSenderWorker(
     const volatile sig_atomic_t& running, 
     const SyncedPtr<CircularBuffer>& buffer,
@@ -19,13 +21,15 @@ RexmitSenderWorker::RexmitSenderWorker(
     , _stations(stations)
     , _current_station(current_station) 
     , _rtime(rtime)
-    {}
+{
+    _ctrl_socket.set_sending_timeout(SENDING_TIMEOUT.count());
+}
 
 // notes:
 // - this turns out to be a more efficient approach 
 //   than the one described in the task description
 // - here we assume that the request will fit 
-//   in a UDP packet and sendto will succeed
+//   in a UDP packet
 void RexmitSenderWorker::order_retransmission() {
     auto stations_lock        = _stations.lock();   
     auto current_station_lock = _current_station.lock();
@@ -56,7 +60,10 @@ void RexmitSenderWorker::order_retransmission() {
             RexmitRequest request(my_addr, packet_ids);
             std::string request_str = request.to_str();
             log_warn("[%s] sending rexmit request: %s", name.c_str(), request_str.c_str());
-            _ctrl_socket.sendto(request_str.c_str(), request_str.length(), (*_current_station)->ctrl_addr);
+            // not checking the return value here, as if something went wront, the station will be switched soon
+            // (aside from the assumption that the packet fits)
+            if (request_str.length() == _ctrl_socket.sendto(request_str.c_str(), request_str.length(), (*_current_station)->ctrl_addr))
+                log_error("[%s] sending rexmit request failed");
         } catch (const std::exception& e) {
             fatal("[%s] malformed rexmit request: %s", name.c_str());
         }

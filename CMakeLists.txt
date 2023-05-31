@@ -21,7 +21,6 @@ add_executable(sikradio-receiver
     src/common/datagram.cc
     src/common/circular_buffer.cc
     src/common/event_queue.cc
-
     src/receiver/rexmit_sender.cc
     src/receiver/audio_printer.cc
     src/receiver/audio_receiver.cc
@@ -29,7 +28,6 @@ add_executable(sikradio-receiver
     src/receiver/lookup_sender.cc
     src/receiver/station_remover.cc
     src/receiver/ui_menu.cc
-    src/receiver/tcp_server.cc
     src/receiver/receiver.cc
 )
 target_link_libraries(sikradio-receiver Boost::program_options)

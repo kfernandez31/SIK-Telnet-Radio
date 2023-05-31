@@ -77,8 +77,8 @@ void LookupReceiverWorker::run() {
         if (poll_fds[NETWORK].revents & POLLIN) {
             poll_fds[NETWORK].revents = 0;
             sockaddr_in src_addr;
-            size_t nread = _ctrl_socket->recvfrom(reply_buf, sizeof(reply_buf) - 1, src_addr);
-            log_debug("[%s] read %zu bytes: %s", name.c_str(), nread, reply_buf);
+            _ctrl_socket->recvfrom(reply_buf, sizeof(reply_buf) - 1, src_addr);
+            log_debug("[%s] got lookup reply: %s", name.c_str(), reply_buf);
             try {
                 LookupReply reply(reply_buf);
                 handle_lookup_reply(reply, src_addr);

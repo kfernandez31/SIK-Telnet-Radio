@@ -19,6 +19,16 @@ UdpSocket::~UdpSocket() {
         fatal("close");
 }
 
+UdpSocket& UdpSocket::operator=(UdpSocket&& other) {
+    _fd                 = other._fd;
+    other._fd           = -1;
+    _mcast_recv_enabled = other._mcast_recv_enabled;
+    _ipmreq             = other._ipmreq;
+    local_addr          = other.local_addr;
+    conn_addr           = other.conn_addr;
+    return *this;
+}
+
 int UdpSocket::fd() const {
     return _fd;
 }
@@ -49,14 +59,19 @@ void UdpSocket::set_broadcast() {
     set_opt(SOL_SOCKET, SO_BROADCAST, &val, sizeof(val));
 }
 
-void UdpSocket::set_mcast_ttl() {
-    int val = TTL_VALUE;
-    set_opt(SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
+void UdpSocket::set_mcast_ttl(int ttl) {
+    set_opt(SOL_SOCKET, SO_REUSEADDR, &ttl, sizeof(ttl));
 }
 
 void UdpSocket::set_drop_membership() {
-    log_debug("dropping membership");
     set_opt(IPPROTO_IP, IP_DROP_SOURCE_MEMBERSHIP, &_ipmreq, sizeof(_ipmreq));
+}
+
+void UdpSocket::set_sending_timeout(const int secs) {
+    struct timeval timeout;      
+    timeout.tv_sec  = secs;
+    timeout.tv_usec = 0;
+    set_opt(SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));    
 }
 
 void UdpSocket::enable_mcast_recv(const sockaddr_in& multicast_addr, const sockaddr_in& source_addr) {
@@ -64,7 +79,6 @@ void UdpSocket::enable_mcast_recv(const sockaddr_in& multicast_addr, const socka
     _ipmreq.imr_multiaddr        = multicast_addr.sin_addr;
     _ipmreq.imr_sourceaddr       = source_addr.sin_addr;
     _mcast_recv_enabled          = true;
-    log_debug("Adding membership");
     set_opt(IPPROTO_IP, IP_ADD_SOURCE_MEMBERSHIP, &_ipmreq, sizeof(_ipmreq));
 }
 
@@ -97,9 +111,8 @@ size_t UdpSocket::read(void* buf, const size_t nbytes) const {
     return nread;
 }
 
-void UdpSocket::sendto(const void* buf, const size_t nbytes, const sockaddr_in& dst_addr) const {
-    if ((ssize_t)nbytes != ::sendto(_fd, buf, nbytes, 0, (sockaddr*)&dst_addr, sizeof(dst_addr)))
-        fatal("sendto");
+ssize_t UdpSocket::sendto(const void* buf, const size_t nbytes, const sockaddr_in& dst_addr) const {
+    return ::sendto(_fd, buf, nbytes, 0, (sockaddr*)&dst_addr, sizeof(dst_addr));
 }
 
 size_t UdpSocket::recvfrom(void* buf, const size_t nbytes, sockaddr_in& src_addr) const {

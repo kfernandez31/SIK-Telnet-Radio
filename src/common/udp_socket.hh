@@ -18,20 +18,13 @@ public:
 
     int fd() const;
 
-    UdpSocket& operator=(UdpSocket&& other) {
-        _fd = other._fd;
-        other._fd = -1;
-        _mcast_recv_enabled = other._mcast_recv_enabled;
-        _ipmreq = other._ipmreq;
-        local_addr = other.local_addr;
-        conn_addr = other.conn_addr;
-        return *this;
-    }
+    UdpSocket& operator=(UdpSocket&& other);
 
     void set_broadcast(); 
     void set_reuseport(); 
     void set_reuseaddr();
-    void set_mcast_ttl();
+    void set_mcast_ttl(int ttl = DEFAULT_TTL);
+    void set_sending_timeout(const int secs);
     void set_add_membership();
     void set_drop_membership();
 
@@ -43,6 +36,8 @@ public:
 
     void write(const void* buf, const size_t nbytes) const;
     size_t read(void* buf, const size_t nbytes) const;
-    void sendto(const void* buf, const size_t nbytes, const sockaddr_in &dst_addr) const;
+    ssize_t sendto(const void* buf, const size_t nbytes, const sockaddr_in &dst_addr) const;
     size_t recvfrom(void* buf, const size_t nbytes, sockaddr_in& src_addr) const;
+
+    static const int DEFAULT_TTL = 4;
 };

@@ -61,7 +61,8 @@ void LookupSenderWorker::run() {
             try {
                 LookupRequest req;
                 std::string req_str = req.to_str();
-                _ctrl_socket->sendto(req_str.c_str(), req_str.size(), _discover_addr);
+                if (req_str.size() != _ctrl_socket->sendto(req_str.c_str(), req_str.size(), _discover_addr))
+                    log_fatal("sending lookup request failed");
             } catch (std::exception& e) {
                 log_error("[%s] malformed lookup request : %s", name.c_str(), e.what());
             }

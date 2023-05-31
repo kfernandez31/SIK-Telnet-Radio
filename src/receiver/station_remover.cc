@@ -5,8 +5,8 @@
 
 using namespace std::chrono;
 
-static const seconds REMOVAL_THRESHOLD = seconds(20);
-static const milliseconds REMOVAL_FREQUENCY = milliseconds(500); //TODO: good enough?
+static const seconds      REMOVAL_THRESHOLD(20);
+static const milliseconds REMOVAL_FREQUENCY(500);
 
 using namespace std::chrono;
 

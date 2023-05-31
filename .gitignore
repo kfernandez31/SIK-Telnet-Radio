@@ -1,5 +1,10 @@
 .vscode/
 build/
+logs/
+samples/
 *.o
+*.log
+*.mp3
+*.wav
 sikradio-receiver
 sikradio-sender

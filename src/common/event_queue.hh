@@ -14,6 +14,7 @@ public:
         CURRENT_STATION_CHANGED,
         STATION_ADDED,
         STATION_REMOVED,
+        CLIENT_ADDED,
         NEW_JOBS,
         TERMINATE,
     };
