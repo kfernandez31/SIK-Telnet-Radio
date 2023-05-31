@@ -58,18 +58,18 @@ void StationRemoverWorker::run() {
         prev_sleep = steady_clock::now();
         remove_inactive();
     }
+    log_debug("[%s] going down", name.c_str());
 }
 
 // this should be called under a mutex lock
 void StationRemoverWorker::reset_current_station() {
-    //TODO: wywal logi
     StationSet::iterator prio_station = _stations->end();
 
     if (_prio_station_name) {
         for (auto it = _stations->begin(); it != _stations->end(); ++it) {
             if (it->name == _prio_station_name) {
                 prio_station = it;
-                log_debug("[%s] found my favorite station!", name.c_str()); 
+                log_debug("[%s] found my favorite station!", name.c_str());
                 break;
             }
         }
@@ -78,7 +78,6 @@ void StationRemoverWorker::reset_current_station() {
     if (prio_station != _stations->end()) {
         *_current_station = prio_station;
     } else if (!_stations->empty()) {
-        log_debug("[%s] resetted to first station", name.c_str());
         *_current_station = _stations->begin();
     } else {
         log_info("[%s] no stations left. Going silent...", name.c_str());

@@ -28,11 +28,10 @@ ControllerWorker::ControllerWorker(
     _ctrl_socket.bind(ctrl_port);
 }
 
-
 void ControllerWorker::handle_lookup_request(const sockaddr_in& src_addr, [[maybe_unused]] LookupRequest&& req) {
     auto reply = _lookup_reply.to_str();
     if (reply.size() != _ctrl_socket.sendto(reply.c_str(), reply.size(), src_addr))
-        log_error("[%s] unable to send lookup reply", name.c_str());
+        log_fatal("[%s] unable to send lookup reply", name.c_str());
 }
 
 void ControllerWorker::handle_rexmit_request(const sockaddr_in& src_addr, RexmitRequest&& req) {
@@ -78,12 +77,17 @@ void ControllerWorker::run() {
                 log_info("[%s] got lookup request", name.c_str());
                 handle_lookup_request(src_addr, std::move(req));
             } catch (...) {}
+            if (req_type == DatagramType::LookupRequest)
+                continue;
+            
             try {
                 RexmitRequest req(src_addr, req_buf);
                 req_type = DatagramType::RexmitRequest;
                 log_info("[%s] got rexmit request", name.c_str());
                 handle_rexmit_request(src_addr, std::move(req));
             } catch (...) {}
+            if (req_type == DatagramType::RexmitRequest)
+                continue;
 
             if (req_type == DatagramType::None)
                 log_error("[%s] unrecognized request", name.c_str());

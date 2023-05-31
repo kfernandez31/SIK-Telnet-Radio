@@ -122,4 +122,5 @@ void AudioReceiverWorker::run() {
             }
         }
     }
+    log_debug("[%s] going down", name.c_str());
 }

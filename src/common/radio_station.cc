@@ -31,10 +31,9 @@ void RadioStation::update_last_reply() const {
 
 bool RadioStation::operator==(const RadioStation& other) const {
     return 
-        name == other.name && 
+        name       == other.name && 
         mcast_addr == other.mcast_addr &&
-        data_addr == other.data_addr &&
-        ctrl_addr == other.ctrl_addr;
+        data_addr  == other.data_addr;
 }
 
 bool RadioStation::cmp::operator()(const RadioStation& a, const RadioStation& b) const {
@@ -42,9 +41,7 @@ bool RadioStation::cmp::operator()(const RadioStation& a, const RadioStation& b)
         return a.name < b.name;
     if (a.mcast_addr != b.mcast_addr)
         return a.mcast_addr < b.mcast_addr;
-    if (a.data_addr != b.data_addr)
-        return a.data_addr < b.data_addr;
-    return a.ctrl_addr < b.ctrl_addr;
+    return a.data_addr != b.data_addr;
 }
 
 bool RadioStation::is_valid_name(const std::string& name) {

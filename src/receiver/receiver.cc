@@ -14,9 +14,9 @@
 #define AUDIO_PRINTER   1
 #define AUDIO_RECEIVER  2
 #define LOOKUP_RECEIVER 3
-#define LOOKUP_SENDER   4
-#define STATION_REMOVER 5
-#define UI_MENU         6
+#define LOOKUP_SENDER   4 // konczy sie
+#define STATION_REMOVER 5 // konczy sie
+#define UI_MENU         6 // konczy sie
 #define NUM_WORKERS     7
 
 static volatile sig_atomic_t running = true;
@@ -39,7 +39,7 @@ static void signal_handler(int signum) {
 }
 
 int main(int argc, char* argv[]) {
-    logger_init();
+    logger_init(true);
 
     struct sigaction sa;
     sa.sa_handler = signal_handler;

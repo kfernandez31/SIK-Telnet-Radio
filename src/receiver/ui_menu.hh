@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ui.hh"
 #include "../common/worker.hh"
 #include "../common/tcp_socket.hh"
 #include "../common/synced_ptr.hh"
@@ -15,6 +16,14 @@
 #include <memory>
 #include <functional>
 
+struct TcpClient {
+    TcpClientSocket socket;
+    TcpClient() : socket(-1) {}
+    TcpClient(TcpClientSocket&& socket_) : socket(-1) { this->socket = std::move(socket_); }
+    size_t nread = 0;
+    char cmd_buf[ui::commands::MAX_CMD_LEN + 1] = {0};
+};
+
 using client_id_t = int;
 
 struct UiMenuWorker : public Worker {
@@ -26,21 +35,20 @@ private:
 
     std::unique_ptr<pollfd[]> _poll_fds;
     TcpServerSocket _server_socket;
-    std::map<int, std::unique_ptr<TcpClientSocket>> _client_sockets;
+    std::map<int, TcpClient> _clients;
 
     std::map<std::string, std::function<void()>> _command_map;
 
     void cmd_move_up();
     void cmd_move_down();
 
-    std::string read_cmd(const int client_id_t);
-    bool        apply_cmd(std::string& cmd_buf);
-
-    size_t active_clients() const;
-
-    client_id_t try_register_client(const int client_fd);
+    void accept_new_client();
+    client_id_t register_client(TcpClientSocket&& client_socket);
     void config_client(const client_id_t id);
     void greet_client(const client_id_t id);
+    void handle_client_input(const client_id_t id);
+    void apply_cmd(const client_id_t id);
+    void reset_client_input(const client_id_t id);
     void send_msg(const client_id_t id, const std::string& msg);
     void send_to_all(const std::string& msg);
     void disconnect_client(const client_id_t id);
@@ -59,6 +67,6 @@ public:
 
     std::string menu_to_str();
 
-    static inline const size_t MAX_CLIENTS   = 2; //TODO: 20
+    static inline const size_t MAX_CLIENTS   = 42; //TODO: 20
     static inline const size_t TOTAL_POLLFDS = 2 + MAX_CLIENTS;
 };

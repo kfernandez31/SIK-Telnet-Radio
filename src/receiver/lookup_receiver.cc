@@ -5,9 +5,13 @@
 
 #include <poll.h>
 
+using namespace std::chrono;
+
 #define MY_EVENT    0
 #define NETWORK     1
 #define NUM_POLLFDS 2
+
+static const seconds RECEIVING_TIMEOUT = seconds(2);
 
 LookupReceiverWorker::LookupReceiverWorker(
     const volatile sig_atomic_t& running, 
@@ -27,11 +31,13 @@ LookupReceiverWorker::LookupReceiverWorker(
     , _ui_menu_event(ui_menu_event)
     , _ctrl_socket(ctrl_socket) 
     , _prio_station_name(prio_station_name)
-    {}
+    {
+        _ctrl_socket->set_receiving_timeout(RECEIVING_TIMEOUT.count());
+    }
 
 void LookupReceiverWorker::handle_lookup_reply(LookupReply& reply, const sockaddr_in& src_addr) {
     RadioStation station(src_addr, reply);
-    log_info("[%s] %u responded: [mcast_addr = %s, data_port = %hu, name = %s]", name.c_str(), ntohs(src_addr.sin_addr.s_addr), reply.mcast_addr.c_str(), reply.data_port, reply.name.c_str());
+    log_info("[%s] got lookup reply : [mcast_addr = %s, data_port = %hu, name = %s]", name.c_str(), reply.mcast_addr.c_str(), reply.data_port, reply.name.c_str());
     auto stations_lock = _stations.lock();
     auto it = _stations->find(station);
     if (it != _stations->end()) {
@@ -39,9 +45,10 @@ void LookupReceiverWorker::handle_lookup_reply(LookupReply& reply, const sockadd
         it->update_last_reply();
     } else {
         log_info("[%s] new station: %s", name.c_str(), station.name.c_str());
-        if (_stations->size() == 0 || _prio_station_name == station.name) {
+        auto inserted_it = _stations->insert(station).first;
+        if (_stations->size() == 1 || _prio_station_name == station.name) {
             auto current_station_lock = _current_station.lock();
-            (*_current_station) = _stations->insert(station).first;
+            (*_current_station) = inserted_it;
             auto lock = _audio_receiver_event.lock();
             _audio_receiver_event->push(EventQueue::EventType::CURRENT_STATION_CHANGED);
         }
@@ -77,8 +84,10 @@ void LookupReceiverWorker::run() {
         if (poll_fds[NETWORK].revents & POLLIN) {
             poll_fds[NETWORK].revents = 0;
             sockaddr_in src_addr;
-            _ctrl_socket->recvfrom(reply_buf, sizeof(reply_buf) - 1, src_addr);
-            log_debug("[%s] got lookup reply: %s", name.c_str(), reply_buf);
+            memset(reply_buf, 0, sizeof(reply_buf));
+            if (sizeof(reply_buf) - 1 != _ctrl_socket->recvfrom(reply_buf, sizeof(reply_buf) - 1, src_addr))
+                log_error("[%s] waited too long for lookup reply", name.c_str());
+            log_info("[%s] got lookup reply: %s", name.c_str(), reply_buf);
             try {
                 LookupReply reply(reply_buf);
                 handle_lookup_reply(reply, src_addr);
@@ -87,4 +96,5 @@ void LookupReceiverWorker::run() {
             }
         }
     }
+    log_debug("[%s] going down", name.c_str());
 }

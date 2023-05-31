@@ -9,7 +9,6 @@
 #define MY_EVENT    1      
 #define NUM_POLLFDS 2
 
-//TODO:
 // Credits: Hubert Lubański
 // static bool simulate_interference() {
 //     static const int max_lost_per_burst = 8;

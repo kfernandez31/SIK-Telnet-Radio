@@ -13,10 +13,13 @@ UdpSocket::UdpSocket() : _mcast_recv_enabled(false) {
 }
 
 UdpSocket::~UdpSocket() {
-    if (_mcast_recv_enabled)
-        disable_mcast_recv();
-    if (_fd != -1 && -1 == close(_fd))
-        fatal("close");
+    if (_fd != -1) {
+        if (_mcast_recv_enabled)
+            disable_mcast_recv();
+        if (close(_fd))
+            fatal("close");
+    }
+    _fd = -1;
 }
 
 UdpSocket& UdpSocket::operator=(UdpSocket&& other) {
@@ -44,19 +47,14 @@ void UdpSocket::set_opt(const int proto, const int type, void* val, const size_t
         fatal("setsockopt");
 }
 
-void UdpSocket::set_reuseport() {
+void UdpSocket::set_broadcast() {
     int val = 1;
-    set_opt(SOL_SOCKET, SO_REUSEPORT, &val, sizeof(val));
+    set_opt(SOL_SOCKET, SO_BROADCAST, &val, sizeof(val));
 }
 
 void UdpSocket::set_reuseaddr() {
     int val = 1;
     set_opt(SOL_SOCKET, SO_REUSEADDR, &val, sizeof(val));
-}
-
-void UdpSocket::set_broadcast() {
-    int val = 1;
-    set_opt(SOL_SOCKET, SO_BROADCAST, &val, sizeof(val));
 }
 
 void UdpSocket::set_mcast_ttl(int ttl) {
@@ -71,7 +69,14 @@ void UdpSocket::set_sending_timeout(const int secs) {
     struct timeval timeout;      
     timeout.tv_sec  = secs;
     timeout.tv_usec = 0;
-    set_opt(SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));    
+    set_opt(SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+}
+
+void UdpSocket::set_receiving_timeout(const int secs) {
+    struct timeval timeout;      
+    timeout.tv_sec  = secs;
+    timeout.tv_usec = 0;
+    set_opt(SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
 }
 
 void UdpSocket::enable_mcast_recv(const sockaddr_in& multicast_addr, const sockaddr_in& source_addr) {
@@ -99,26 +104,15 @@ void UdpSocket::bind(const in_port_t port) {
         fatal("bind");
 }
 
-void UdpSocket::write(const void* buf, const size_t nbytes) const {
-    if ((ssize_t)nbytes != ::write(_fd, buf, nbytes))
-        fatal("write");
-}
-
-size_t UdpSocket::read(void* buf, const size_t nbytes) const {
-    ssize_t nread;
-    if (-1 == (nread = ::read(_fd, buf, nbytes)))
-        fatal("read");
-    return nread;
-}
-
 ssize_t UdpSocket::sendto(const void* buf, const size_t nbytes, const sockaddr_in& dst_addr) const {
     return ::sendto(_fd, buf, nbytes, 0, (sockaddr*)&dst_addr, sizeof(dst_addr));
 }
 
-size_t UdpSocket::recvfrom(void* buf, const size_t nbytes, sockaddr_in& src_addr) const {
+ssize_t UdpSocket::recvfrom(void* buf, const size_t nbytes, sockaddr_in& src_addr) const {
     socklen_t addr_len = sizeof(src_addr);
-    ssize_t nread;
-    if (-1 == (nread = ::recvfrom(_fd, buf, nbytes, 0, (sockaddr*)&src_addr, &addr_len)))
-        fatal("recvfrom");
-    return nread;
+    return ::recvfrom(_fd, buf, nbytes, 0, (sockaddr*)&src_addr, &addr_len);
+}
+
+size_t UdpSocket::read(void* buf, const size_t nbytes) const {
+    return ::read(_fd, buf, nbytes);
 }

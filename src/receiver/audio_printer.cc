@@ -49,4 +49,6 @@ void AudioPrinterWorker::run() {
             }
         }
     }
+
+    log_debug("[%s] going down", name.c_str());
 }

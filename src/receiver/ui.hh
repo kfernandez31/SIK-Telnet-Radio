@@ -3,37 +3,57 @@
 namespace ui {
     namespace telnet {
         namespace commands {
-            const unsigned char WILL = 251;
-            const unsigned char DO   = 253;
-            const unsigned char IAC  = 255;
+            inline const unsigned char WILL = 251;
+            inline const unsigned char DO   = 253;
+            inline const unsigned char IAC  = 255;
         }
         
         namespace options {
-            const unsigned char ECHO     = 1;
-            const unsigned char NAOFFD   = 13;
-            const unsigned char LINEMODE = 34;
+            inline const unsigned char ECHO     = 1;
+            inline const unsigned char LINEMODE = 34;
         }
 
-        const char* newline = "\r\n";
+        inline const char* newline = "\r\n";
     }
 
-    namespace keys {
-        const char* ARROW_UP   = "\e[A";
-        const char* ARROW_DOWN = "\e[B";
+    namespace commands {
+        enum Key {
+            ESCAPE     = '\33',
+            DELIM      = '[',
+            ARROW_UP   = 'A',
+            ARROW_DOWN = 'B'
+        };
+
+        inline const int MAX_CMD_LEN = 3; 
+        inline const char* UP   = "\33[A";
+        inline const char* DOWN = "\33[B";
     }
 
     namespace display {
-        const char* CLEAR            = "\ec\e[3J";
-        const char* NO_COLOR         = "\e[0m";
-        const char* YELOW_BACKGROUND = "\e[48;5;226m";
-        const char* CYAN             = "\e[1;96m";
+        inline const char* CLEAR            = "\33[2J\33[H";
+
+        inline const char* NO_COLOR         = "\e[0m";
+        inline const char* GREEN            = "\e[1;92m";
+
+        inline const char* START_BLINK = "\e[5m";
+        inline const char* STOP_BLINK  = "\e[25m";
+
+        inline const char* START_BOLD  = "\e[1m";
+        inline const char* STOP_BOLD   = "\e[22m";
     }
 }
 
-#define HIGHLIGHT(msg) msg
-//TODO:
-// #define HIGHLIGHT(msg)               \
-//     ui::display::YELOW_BACKGROUND << \
-//     ui::display::CYAN <<             \
-//     msg <<                           \
-//     ui::display::NO_COLOR
+#define BLINK(msg)              \
+    ui::display::START_BLINK << \
+    msg <<                      \
+    ui::display::STOP_BLINK
+
+#define BOLD(msg)               \
+    ui::display::START_BOLD <<  \
+    msg <<                      \
+    ui::display::STOP_BOLD
+
+#define GREEN(msg)              \
+    ui::display::GREEN <<       \
+    msg <<                      \
+    ui::display::NO_COLOR

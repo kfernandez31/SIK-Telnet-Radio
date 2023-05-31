@@ -21,7 +21,7 @@ public:
     UdpSocket& operator=(UdpSocket&& other);
 
     void set_broadcast(); 
-    void set_reuseport(); 
+    void set_receiving_timeout(const int secs);
     void set_reuseaddr();
     void set_mcast_ttl(int ttl = DEFAULT_TTL);
     void set_sending_timeout(const int secs);
@@ -37,7 +37,7 @@ public:
     void write(const void* buf, const size_t nbytes) const;
     size_t read(void* buf, const size_t nbytes) const;
     ssize_t sendto(const void* buf, const size_t nbytes, const sockaddr_in &dst_addr) const;
-    size_t recvfrom(void* buf, const size_t nbytes, sockaddr_in& src_addr) const;
+    ssize_t recvfrom(void* buf, const size_t nbytes, sockaddr_in& src_addr) const;
 
     static const int DEFAULT_TTL = 4;
 };

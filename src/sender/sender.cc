@@ -79,7 +79,6 @@ int main(int argc, char* argv[]) {
     for (int i = NUM_WORKERS - 2; i >= 0; --i)
         worker_threads[i].join();
 
-
     worker_threads[CONTROLLER].join();
     worker_threads[RETRANSMITTER].join();  
 

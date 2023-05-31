@@ -42,7 +42,6 @@ void RetransmitterWorker::handle_retransmission(RexmitRequest&& req) {
         ++it;
     if (it == req.packet_ids.end())
         return; // nothing to do
-    
 
     std::vector<uint64_t> retransmitted_ids;
     // this could have been optimized by copying the buffer or somehow locking it in the loop

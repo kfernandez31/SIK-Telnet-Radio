@@ -36,8 +36,6 @@ void RexmitSenderWorker::order_retransmission() {
     if (*_current_station == _stations->end()) 
         return; // not connected to any station => no one to ask for retransmission
     
-    log_debug("[%s] gathering missing packets...", name.c_str());
-
     auto buffer_lock = _buffer.lock();
     size_t i = _buffer->tail();
     std::vector<uint64_t> packet_ids;
@@ -59,7 +57,7 @@ void RexmitSenderWorker::order_retransmission() {
 
             RexmitRequest request(my_addr, packet_ids);
             std::string request_str = request.to_str();
-            log_warn("[%s] sending rexmit request: %s", name.c_str(), request_str.c_str());
+            log_info("[%s] sending rexmit request: %s", name.c_str(), request_str.c_str());
             // not checking the return value here, as if something went wront, the station will be switched soon
             // (aside from the assumption that the packet fits)
             if (request_str.length() == _ctrl_socket.sendto(request_str.c_str(), request_str.length(), (*_current_station)->ctrl_addr))
@@ -77,4 +75,5 @@ void RexmitSenderWorker::run() {
         prev_sleep = steady_clock::now();
         order_retransmission();
     }
+    log_debug("[%s] going down", name.c_str());
 }

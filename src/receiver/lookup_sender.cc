@@ -57,7 +57,7 @@ void LookupSenderWorker::run() {
             poll_fds[NETWORK].revents = 0;
             std::this_thread::sleep_until(prev_sleep + LOOKUP_TIMEOUT);
             prev_sleep = steady_clock::now();
-            log_info("[%s] sending request...", name.c_str());
+            log_info("[%s] sending lookup request...", name.c_str());
             try {
                 LookupRequest req;
                 std::string req_str = req.to_str();
@@ -68,4 +68,5 @@ void LookupSenderWorker::run() {
             }
         }
     }
+    log_debug("[%s] going down", name.c_str());
 }
