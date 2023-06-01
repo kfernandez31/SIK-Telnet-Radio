@@ -4,6 +4,8 @@
 
 #include <thread>
 
+#include <cassert>
+
 #define MY_EVENT      0
 #define SERVER        1
 #define MIN_CLIENT_ID 2

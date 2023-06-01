@@ -30,7 +30,7 @@ static void signal_handler(int signum) {
 }
 
 int main(int argc, char* argv[]) {
-    logger_init(false);
+    logger_init();
     
     struct sigaction sa;
     sa.sa_handler = signal_handler;
@@ -78,9 +78,6 @@ int main(int argc, char* argv[]) {
     raise(SIGINT);
     for (int i = NUM_WORKERS - 2; i >= 0; --i)
         worker_threads[i].join();
-
-    worker_threads[CONTROLLER].join();
-    worker_threads[RETRANSMITTER].join();  
 
     logger_destroy();
     return 0;

@@ -39,7 +39,7 @@ static void signal_handler(int signum) {
 }
 
 int main(int argc, char* argv[]) {
-    logger_init(true);
+    logger_init();
 
     struct sigaction sa;
     sa.sa_handler = signal_handler;

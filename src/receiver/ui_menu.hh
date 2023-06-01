@@ -67,6 +67,6 @@ public:
 
     std::string menu_to_str();
 
-    static inline const size_t MAX_CLIENTS   = 42; //TODO: 20
+    static inline const size_t MAX_CLIENTS   = 42;
     static inline const size_t TOTAL_POLLFDS = 2 + MAX_CLIENTS;
 };

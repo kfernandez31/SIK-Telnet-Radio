@@ -11,7 +11,7 @@ using namespace std::chrono;
 #define NETWORK     1
 #define NUM_POLLFDS 2
 
-static const seconds RECEIVING_TIMEOUT = seconds(2);
+static const seconds RECEIVING_TIMEOUT = seconds(10);
 
 LookupReceiverWorker::LookupReceiverWorker(
     const volatile sig_atomic_t& running, 
@@ -86,7 +86,7 @@ void LookupReceiverWorker::run() {
             sockaddr_in src_addr;
             memset(reply_buf, 0, sizeof(reply_buf));
             if (sizeof(reply_buf) - 1 != _ctrl_socket->recvfrom(reply_buf, sizeof(reply_buf) - 1, src_addr))
-                log_error("[%s] waited too long for lookup reply", name.c_str());
+                log_warn("[%s] waited too long for lookup reply", name.c_str());
             log_info("[%s] got lookup reply: %s", name.c_str(), reply_buf);
             try {
                 LookupReply reply(reply_buf);

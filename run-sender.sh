@@ -18,3 +18,8 @@ pv -q -L 176400 | ./build/sikradio-sender \
 sox -S "samples/here_comes_the_sun.mp3" -r 44100 -b 16 -e signed-integer -c 2 -t raw - | \
 pv -q -L 176400 | ./build/sikradio-sender \
 -a 239.10.11.16 -n "Here Comes The Sun"
+
+
+sox -S "samples/ducktales.mp3" -r 44100 -b 16 -e signed-integer -c 2 -t raw - | \
+pv -q -L 176400 | ./build/sikradio-sender \
+-a 239.10.11.17 -n "DuckTales"

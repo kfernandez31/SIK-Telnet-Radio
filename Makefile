@@ -1,6 +1,5 @@
 CXX := g++
-CXXFLAGS := -std=c++20 -Wall -Wextra -Og -g -pedantic
-# -O2 TODO: 
+CXXFLAGS := -std=c++20 -Wall -Wextra -O2 
 LDFLAGS = -lboost_program_options -pthread
 INCLUDES = -I/usr/include/boost
 
