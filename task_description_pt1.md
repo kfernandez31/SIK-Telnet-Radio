@@ -1,6 +1,5 @@
 Zadanie polega na napisaniu **nadajnika i odbiornika internetowego radia**. Stanowi ono istotną część zadania 2, które będzie polegało na rozszerzeniu funkcjonalności nadajnika i odbiornika.
 
-
 Stałe użyte w treści:
 
 - `DEST_ADDR` - adres odbiornika, ustawiany obowiązkowym parametrem `-a` nadajnika
@@ -12,7 +11,6 @@ Stałe użyte w treści:
 - `BSIZE` - rozmiar w bajtach bufora, ustawiany parametrem `-b` odbiornika, domyślnie 64kB (65536B)
 
 - `NAZWA` - nazwa to nazwa nadajnika, ustawiana parametrem `-n`, domyślnie "Nienazwany Nadajnik"
-
 
 # Cześć A (nadajnik)
 
@@ -131,24 +129,3 @@ Jako rozwiązanie należy dostarczyć pliki źródłowe oraz plik makefile, któ
 W wyniku wykonania polecenia make dla części A zadania ma powstać plik wykonywalny `sikradio-sender`, a dla części B zadania – plik wykonywalny `sikradio-receiver`.
 
 Ponadto makefile powinien obsługiwać cel `'clean'`, który po wywołaniu kasuje wszystkie pliki powstałe podczas kompilacji.
-
-# Pytania
-
-Pytania do zadania należy kierować na adres: zbyszek@mimuw.edu.pl. Odpowiedzi do najczęściej zadawanych pytań będą pojawiać się na forum: moodle.mimuw.edu.pl/mod/forum/discuss.php?d=8487.  Ostatnia odpowiedź pojawi się najpóźniej 3 doby przed terminem oddania zadania.
-
-# Oceny
-
-Można otrzymać do 10 p. Ocena każdej z części zadania będzie się składała z trzech składników:
-
-- ocena słuchowa i manualna działania programu (40%);
-
-- testy automatyczne (50%);
-
-- jakość tekstu źródłowego (10%).
-
-
-# Termin
-
-Termin oddania zadania: 24.04, godzina 23:59.
-
-Za każdą rozpoczętą dobę opóźnienia odejmujemy 2 punkty. Można się spóźnić co najwyżej dwie doby.
