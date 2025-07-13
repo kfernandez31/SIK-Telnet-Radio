@@ -7,7 +7,7 @@
 #define NUM_POLLFDS 1
 
 AudioPrinterWorker::AudioPrinterWorker(
-    const volatile sig_atomic_t& running, 
+    const volatile sig_atomic_t& running,
     const SyncedPtr<CircularBuffer>& buffer,
     const SyncedPtr<EventQueue>& my_event
 )
@@ -18,9 +18,9 @@ AudioPrinterWorker::AudioPrinterWorker(
 
 void AudioPrinterWorker::handle_print() {
     auto buf_lock = _buffer.lock();
-    // note: we don't notify AudioReceiver and he doesn't reset the session. 
+    // note: we don't notify AudioReceiver and he doesn't reset the session.
     // This allows for a much better user experience, less choppy sound, just occasional silence
-    if (!_buffer->occupied(_buffer->tail())) 
+    if (!_buffer->occupied(_buffer->tail()))
         log_warn("[%s] detected packet loss!", name.c_str());
     _buffer->dump_tail(_buffer->psize());
 }
@@ -34,7 +34,7 @@ void AudioPrinterWorker::run() {
     }
 
     while (running) {
-        if (-1 == poll(poll_fds, NUM_POLLFDS, -1))
+        if (poll(poll_fds, NUM_POLLFDS, -1)) == -1)
             fatal("poll");
 
         if (poll_fds[MY_EVENT].revents & POLLIN) {

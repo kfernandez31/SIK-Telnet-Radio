@@ -11,7 +11,7 @@ SET(CMAKE_CXX_FLAGS "-Wall -O2")
 find_package(Boost REQUIRED COMPONENTS program_options REQUIRED)
 
 # # Add executable for receiver
-add_executable(sikradio-receiver 
+add_executable(sikradio-receiver
     src/common/log.cc
     src/common/except.cc
     src/common/net.cc

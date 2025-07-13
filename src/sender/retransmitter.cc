@@ -14,7 +14,7 @@ using namespace std::chrono;
 #define NUM_POLLFDS 1
 
 RetransmitterWorker::RetransmitterWorker(
-    const volatile sig_atomic_t& running, 
+    const volatile sig_atomic_t& running,
     const SyncedPtr<CircularBuffer>& packet_cache,
     const SyncedPtr<std::queue<RexmitRequest>>& job_queue,
     const SyncedPtr<EventQueue>& my_event,
@@ -47,12 +47,12 @@ void RetransmitterWorker::handle_retransmission(RexmitRequest&& req) {
     // this could have been optimized by copying the buffer or somehow locking it in the loop
     uint64_t cache_packet_num = _packet_cache->abs_tail();
     size_t cache_idx = _packet_cache->tail();
-    for (; it != req.packet_ids.end(); ++it) {        
+    for (; it != req.packet_ids.end(); ++it) {
         while (cache_packet_num != _packet_cache->abs_head() && cache_packet_num < *it) {
             cache_packet_num += _packet_cache->psize();
             cache_idx = (cache_idx + _packet_cache->psize()) % _packet_cache->rounded_cap();
         }
-        if (cache_packet_num != _packet_cache->abs_head()) 
+        if (cache_packet_num != _packet_cache->abs_head())
             break; // no more packets in cache
         memcpy(pkt_buf + sizeof(uint64_t), &cache_packet_num, sizeof(uint64_t));
         memcpy(pkt_buf + 2 * sizeof(uint64_t), _packet_cache->data() + cache_idx, _packet_cache->psize());
@@ -83,7 +83,7 @@ void RetransmitterWorker::run() {
 
     steady_clock::time_point prev_sleep = steady_clock::now();
     while (running) {
-        if (-1 == poll(poll_fds, NUM_POLLFDS, -1))
+        if (poll(poll_fds, NUM_POLLFDS, -1)) == -1)
             fatal("poll");
 
         if (poll_fds[MY_EVENT].revents & POLLIN) {

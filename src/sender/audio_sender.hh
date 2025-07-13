@@ -22,13 +22,13 @@ private:
 public:
     AudioSenderWorker() = delete;
     AudioSenderWorker(
-        const volatile sig_atomic_t& running, 
+        const volatile sig_atomic_t& running,
         const sockaddr_in& mcast_addr,
         const SyncedPtr<CircularBuffer>& packet_cache,
         const SyncedPtr<EventQueue>& my_event,
         const size_t psize,
         const uint64_t session_id
     );
-    
+
     void run() override;
 };

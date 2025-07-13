@@ -26,7 +26,7 @@ private:
 public:
     ControllerWorker() = delete;
     ControllerWorker(
-        const volatile sig_atomic_t& running, 
+        const volatile sig_atomic_t& running,
         const SyncedPtr<EventQueue>& my_event,
         const SyncedPtr<EventQueue>& retransmitter_event,
         const SyncedPtr<std::queue<RexmitRequest>>& rexmit_job_queue,
@@ -35,6 +35,6 @@ public:
         const std::string& name,
         const in_port_t ctrl_port
     );
-    
+
     void run() override;
 };

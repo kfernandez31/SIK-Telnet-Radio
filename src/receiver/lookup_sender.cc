@@ -37,10 +37,10 @@ void LookupSenderWorker::run() {
     poll_fds[NETWORK].events   = POLLOUT;
     for (size_t i = 0; i < NUM_POLLFDS; ++i)
         poll_fds[i].revents = 0;
-    
+
     steady_clock::time_point prev_sleep = steady_clock::now();
     while (running) {
-        if (-1 == poll(poll_fds, NUM_POLLFDS, -1))
+        if (poll(poll_fds, NUM_POLLFDS, -1)) == -1)
             fatal("poll");
 
         if (poll_fds[MY_EVENT].revents & POLLIN) {

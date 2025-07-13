@@ -17,7 +17,7 @@ private:
 public:
     AudioPrinterWorker() = delete;
     AudioPrinterWorker(
-        const volatile sig_atomic_t& running, 
+        const volatile sig_atomic_t& running,
         const SyncedPtr<CircularBuffer>& buffer,
         const SyncedPtr<EventQueue>& my_event
     );

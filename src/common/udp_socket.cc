@@ -4,10 +4,8 @@
 
 #include <unistd.h>
 
-#define TTL_VALUE 4
-
 UdpSocket::UdpSocket() : _mcast_recv_enabled(false) {
-    if (-1 == (_fd = socket(AF_INET, SOCK_DGRAM, 0)))
+    if ((_fd = socket(AF_INET, SOCK_DGRAM, 0)) == -1)
         fatal("socket");
     set_local_port(0);
 }
@@ -43,7 +41,7 @@ void UdpSocket::set_local_port(const in_port_t port) {
 }
 
 void UdpSocket::set_opt(const int proto, const int type, void* val, const size_t val_size) {
-    if (-1 == setsockopt(_fd, proto, type, val, val_size))
+    if (setsockopt(_fd, proto, type, val, val_size) == -1)
         fatal("setsockopt");
 }
 
@@ -66,14 +64,14 @@ void UdpSocket::set_drop_membership() {
 }
 
 void UdpSocket::set_sending_timeout(const int secs) {
-    struct timeval timeout;      
+    struct timeval timeout;
     timeout.tv_sec  = secs;
     timeout.tv_usec = 0;
     set_opt(SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 }
 
 void UdpSocket::set_receiving_timeout(const int secs) {
-    struct timeval timeout;      
+    struct timeval timeout;
     timeout.tv_sec  = secs;
     timeout.tv_usec = 0;
     set_opt(SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
@@ -94,13 +92,13 @@ void UdpSocket::disable_mcast_recv() {
 
 void UdpSocket::connect(const sockaddr_in& conn_addr) {
     this->conn_addr = conn_addr;
-    if (-1 == ::connect(_fd, (sockaddr*)&conn_addr, sizeof(conn_addr)))
+    if (::connect(_fd, (sockaddr*)&conn_addr, sizeof(conn_addr)) == -1)
         fatal("connect");
 }
 
 void UdpSocket::bind(const in_port_t port) {
     set_local_port(port);
-    if (-1 == ::bind(_fd, (sockaddr*)&local_addr, sizeof(local_addr)))
+    if (::bind(_fd, (sockaddr*)&local_addr, sizeof(local_addr)) == -1)
         fatal("bind");
 }
 

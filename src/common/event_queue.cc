@@ -7,15 +7,14 @@
 #include "../common/worker.hh"
 
 EventQueue::EventQueue() {
-    if (-1 == pipe(_fds))
+    if (pipe(_fds)) == -1)
         fatal("pipe");
 }
 
 EventQueue::~EventQueue() {
-    if (-1 == close(_fds[STDIN_FILENO]))
-        fatal("close");
-    if (-1 == close(_fds[STDOUT_FILENO]))
-        fatal("close");
+    for (auto i : {STDIN_FILENO, STDOUT_FILENO})
+        if (close(_fds[i])) == -1)
+            fatal("close");
 }
 
 int EventQueue::in_fd() const {
@@ -23,13 +22,13 @@ int EventQueue::in_fd() const {
 }
 
 void EventQueue::push(const EventQueue::EventType event_type) {
-    if (-1 == write(_fds[STDOUT_FILENO], &event_type, sizeof(event_type)))
+    if (write(_fds[STDOUT_FILENO], &event_type, sizeof(event_type))) == -1)
         fatal("write");
 }
 
 EventQueue::EventType EventQueue::pop() const {
     EventQueue::EventType event_type;
-    if (-1 == read(_fds[STDIN_FILENO], &event_type, sizeof(event_type)))
+    if (read(_fds[STDIN_FILENO], &event_type, sizeof(event_type))) == -1)
         fatal("read");
     return event_type;
 }

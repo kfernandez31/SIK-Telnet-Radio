@@ -9,5 +9,7 @@ private:
 public:
     RadioException(const std::string& msg) : msg(std::move(msg)) {}
 
-    const char* what() const noexcept override;
+    const char* what() const noexcept override {
+        return msg.c_str();
+    }
 };

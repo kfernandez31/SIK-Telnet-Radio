@@ -5,13 +5,13 @@
 #include <cstdlib>
 #include <cstring>
 
-enum log_level_t { 
-    LOG_TRACE, 
-    LOG_DEBUG, 
-    LOG_INFO, 
-    LOG_WARN, 
-    LOG_ERROR, 
-    LOG_FATAL 
+enum log_level_t {
+    LOG_TRACE,
+    LOG_DEBUG,
+    LOG_INFO,
+    LOG_WARN,
+    LOG_ERROR,
+    LOG_FATAL
 };
 
 struct LogMsg {

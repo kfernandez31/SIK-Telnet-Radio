@@ -14,22 +14,22 @@ using namespace std::chrono;
 static const seconds RECEIVING_TIMEOUT = seconds(10);
 
 LookupReceiverWorker::LookupReceiverWorker(
-    const volatile sig_atomic_t& running, 
+    const volatile sig_atomic_t& running,
     const SyncedPtr<StationSet>& stations,
     const SyncedPtr<StationSet::iterator>& current_station,
-    const SyncedPtr<EventQueue>& my_event,  
+    const SyncedPtr<EventQueue>& my_event,
     const SyncedPtr<EventQueue>& audio_receiver_event,
     const SyncedPtr<EventQueue>& ui_menu_event,
     const std::shared_ptr<UdpSocket>& ctrl_socket,
     const std::optional<std::string> prio_station_name
-) 
+)
     : Worker(running, "LookupReceiver")
     , _stations(stations)
-    , _current_station(current_station) 
+    , _current_station(current_station)
     , _my_event(my_event)
     , _audio_receiver_event(audio_receiver_event)
     , _ui_menu_event(ui_menu_event)
-    , _ctrl_socket(ctrl_socket) 
+    , _ctrl_socket(ctrl_socket)
     , _prio_station_name(prio_station_name)
     {
         _ctrl_socket->set_receiving_timeout(RECEIVING_TIMEOUT.count());
@@ -68,7 +68,7 @@ void LookupReceiverWorker::run() {
     }
 
     while (running) {
-        if (-1 == poll(poll_fds, NUM_POLLFDS, -1))
+        if (poll(poll_fds, NUM_POLLFDS, -1)) == -1)
             fatal("poll");
 
         if (poll_fds[MY_EVENT].revents & POLLIN) {

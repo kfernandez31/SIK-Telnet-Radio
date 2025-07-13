@@ -72,12 +72,12 @@ int main(int argc, char* argv[]) {
         running, buffer, event_queues[AUDIO_PRINTER]
     );
     workers[AUDIO_RECEIVER] = std::make_shared<AudioReceiverWorker>(
-        running, buffer, stations, current_station, 
+        running, buffer, stations, current_station,
         event_queues[AUDIO_RECEIVER], event_queues[AUDIO_PRINTER]
     );
     workers[LOOKUP_RECEIVER] = std::make_shared<LookupReceiverWorker>(
         running, stations, current_station, event_queues[LOOKUP_RECEIVER],
-        event_queues[AUDIO_RECEIVER], event_queues[UI_MENU], 
+        event_queues[AUDIO_RECEIVER], event_queues[UI_MENU],
         ctrl_socket, params.prio_station_name
     );
     workers[LOOKUP_SENDER] = std::make_shared<LookupSenderWorker>(
@@ -88,7 +88,7 @@ int main(int argc, char* argv[]) {
         event_queues[UI_MENU], params.prio_station_name
     );
     workers[UI_MENU] = std::make_shared<UiMenuWorker>(
-        running, stations, current_station, event_queues[UI_MENU], 
+        running, stations, current_station, event_queues[UI_MENU],
         event_queues[AUDIO_RECEIVER], params.ui_port
     );
 

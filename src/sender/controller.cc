@@ -10,7 +10,7 @@
 #define NUM_POLLFDS 2
 
 ControllerWorker::ControllerWorker(
-    const volatile sig_atomic_t& running, 
+    const volatile sig_atomic_t& running,
     const SyncedPtr<EventQueue>& my_event,
     const SyncedPtr<EventQueue>& retransmitter_event,
     const SyncedPtr<std::queue<RexmitRequest>>& rexmit_job_queue,
@@ -52,7 +52,7 @@ void ControllerWorker::run() {
     }
 
     while (running) {
-        if (-1 == poll(poll_fds, NUM_POLLFDS, -1))
+        if (poll(poll_fds, NUM_POLLFDS, -1)) == -1)
             fatal("poll");
 
         if (poll_fds[MY_EVENT].revents & POLLIN) {
@@ -79,7 +79,7 @@ void ControllerWorker::run() {
             } catch (...) {}
             if (req_type == DatagramType::LookupRequest)
                 continue;
-            
+
             try {
                 RexmitRequest req(src_addr, req_buf);
                 req_type = DatagramType::RexmitRequest;

@@ -26,7 +26,7 @@ private:
 public:
     AudioReceiverWorker() = delete;
     AudioReceiverWorker(
-        const volatile sig_atomic_t& running, 
+        const volatile sig_atomic_t& running,
         const SyncedPtr<CircularBuffer>& buffer,
         const SyncedPtr<StationSet>& stations,
         const SyncedPtr<StationSet::iterator>& current_station,

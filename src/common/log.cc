@@ -24,11 +24,11 @@ struct log_level_pretty_info_t {
 };
 
 static const log_level_pretty_info_t pretty[] = {
-  {"TRACE", "\x1b[94m"}, 
-  {"DEBUG", "\x1b[36m"}, 
-  {"INFO",  "\x1b[32m"}, 
-  {"WARN",  "\x1b[33m"}, 
-  {"ERROR", "\x1b[31m"}, 
+  {"TRACE", "\x1b[94m"},
+  {"DEBUG", "\x1b[36m"},
+  {"INFO",  "\x1b[32m"},
+  {"WARN",  "\x1b[33m"},
+  {"ERROR", "\x1b[31m"},
   {"FATAL", "\x1b[35m"},
 };
 
@@ -48,7 +48,7 @@ LogMsg* new_log_msg(const log_level_t level, const char * const file, const size
         perror("malloc");
         exit(1);
     }
-    
+
     time_t now  = time(NULL);
     msg->time   = localtime(&now);
     if (!msg->time) {
@@ -77,10 +77,10 @@ void print_log_msg(LogMsg* msg) {
     char time_buf[TIMESTAMP_LEN + 1] = {'\0'};
     strftime(time_buf, sizeof(time_buf), "[%Y-%m-%d %H:%M:%S]", msg->time);
     if (logger.logfile == stderr)
-        fprintf(logger.logfile, "%s %s%-5s\x1b[0m \x1b[90m%s:%zu:\x1b[0m %s\n", 
+        fprintf(logger.logfile, "%s %s%-5s\x1b[0m \x1b[90m%s:%zu:\x1b[0m %s\n",
             time_buf, pretty[msg->level].color, pretty[msg->level].name, msg->file, msg->line, msg->contents);
     else
-        fprintf(logger.logfile, "%s %-5s %s:%zu: %s\n", 
+        fprintf(logger.logfile, "%s %-5s %s:%zu: %s\n",
             time_buf,                           pretty[msg->level].name, msg->file, msg->line, msg->contents);
     fflush(logger.logfile);
     free_log_msg(msg);

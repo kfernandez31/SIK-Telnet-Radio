@@ -11,10 +11,10 @@
 RadioStation::RadioStation(
     const sockaddr_in& sender_addr,
     const LookupReply& payload
-) 
+)
     : ctrl_addr(sender_addr)
     , name(payload.name)
-    , last_reply(std::chrono::steady_clock::now()) 
+    , last_reply(std::chrono::steady_clock::now())
 {
     if (!is_valid_name(name))
         throw RadioException("Invalid name");
@@ -30,27 +30,17 @@ void RadioStation::update_last_reply() const {
 }
 
 bool RadioStation::operator==(const RadioStation& other) const {
-    return 
-        name       == other.name && 
-        mcast_addr == other.mcast_addr &&
-        data_addr  == other.data_addr;
+    return  name == other.name
+        && mcast_addr == other.mcast_addr
+        && data_addr  == other.data_addr;
 }
 
 bool RadioStation::cmp::operator()(const RadioStation& a, const RadioStation& b) const {
-    if (a.name != b.name)
-        return a.name < b.name;
-    if (a.mcast_addr != b.mcast_addr)
-        return a.mcast_addr < b.mcast_addr;
-    return a.data_addr != b.data_addr;
+    return std::tie(a.name, a.mcast_addr, a.data_addr) < std::tie(b.name, b.mcast_addr, b.data_addr);
 }
 
 bool RadioStation::is_valid_name(const std::string& name) {
     if (name.empty() || name.front() == ' ' || name.back() == ' ' || name.size() > STATION_NAME_MAX_LEN)
         return false;
-    for (size_t i = 0; i < name.length(); ++i) {
-        unsigned char c = name.at(i);
-        if (c < 32 || c > 127)
-            return false;
-    }
-    return true;
+    return std::all_of(name.begin(), name.end(), [](unsigned char c) { return c >= 32 && c <= 127; });
 }

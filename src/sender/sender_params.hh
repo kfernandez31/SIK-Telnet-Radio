@@ -45,7 +45,7 @@ struct SenderParams {
             std::cout << desc;
             exit(EXIT_SUCCESS);
         }
-        
+
         if (!vm.count("mcast_addr"))
             throw RadioException("MCAST_ADDR is required");
 

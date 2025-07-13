@@ -21,13 +21,13 @@ private:
 public:
     StationRemoverWorker() = delete;
     StationRemoverWorker(
-        const volatile sig_atomic_t& running, 
+        const volatile sig_atomic_t& running,
         const SyncedPtr<StationSet>& stations,
         const SyncedPtr<StationSet::iterator>& current_station,
         const SyncedPtr<EventQueue>& audio_receiver_event,
         const SyncedPtr<EventQueue>& ui_menu_event,
         const std::optional<std::string> prio_station_name
     );
-    
+
     void run() override;
 };

@@ -10,7 +10,7 @@ using namespace std::chrono;
 static const seconds SENDING_TIMEOUT = seconds(1);
 
 RexmitSenderWorker::RexmitSenderWorker(
-    const volatile sig_atomic_t& running, 
+    const volatile sig_atomic_t& running,
     const SyncedPtr<CircularBuffer>& buffer,
     const SyncedPtr<StationSet>& stations,
     const SyncedPtr<StationSet::iterator>& current_station,
@@ -19,23 +19,23 @@ RexmitSenderWorker::RexmitSenderWorker(
     : Worker(running, "RexmitSender")
     , _buffer(buffer)
     , _stations(stations)
-    , _current_station(current_station) 
+    , _current_station(current_station)
     , _rtime(rtime)
 {
     _ctrl_socket.set_sending_timeout(SENDING_TIMEOUT.count());
 }
 
 // notes:
-// - this turns out to be a more efficient approach 
+// - this turns out to be a more efficient approach
 //   than the one described in the task description
-// - here we assume that the request will fit 
+// - here we assume that the request will fit
 //   in a UDP packet
 void RexmitSenderWorker::order_retransmission() {
-    auto stations_lock        = _stations.lock();   
+    auto stations_lock        = _stations.lock();
     auto current_station_lock = _current_station.lock();
-    if (*_current_station == _stations->end()) 
+    if (*_current_station == _stations->end())
         return; // not connected to any station => no one to ask for retransmission
-    
+
     auto buffer_lock = _buffer.lock();
     size_t i = _buffer->tail();
     std::vector<uint64_t> packet_ids;
@@ -45,7 +45,7 @@ void RexmitSenderWorker::order_retransmission() {
             if (!_buffer->occupied(i))
                 packet_ids.push_back(i + _buffer->abs_tail());
             i = (i + _buffer->psize()) % _buffer->rounded_cap();
-        } 
+        }
     }
 
     if (packet_ids.size() > 0) {

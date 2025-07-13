@@ -14,19 +14,15 @@
 #define FIELD_SEPARATOR  ' '
 #define PACKET_SEPARATOR ","
 
-static inline std::string trimmed(const std::string& str) {
-    std::string res(str);
-    if (res.back() == '\n')
-        res.pop_back();
-    return res;
+static inline std::string trimmed(std::string str) {
+    if (!str.empty() && str.back() == '\n')
+        str.pop_back();
+    return str;
 }
 
+/// Checks if a string consists only of numeric characters.
 static inline bool is_numeric(const std::string& str) {
-    for (char c : str)
-        if (!std::isdigit(c))
-            return false;
-    
-    return true;
+    return std::all_of(str.begin(), str.end(), std::isdigit);
 }
 
 //----------------------------LookupRequest------------------------------------
@@ -51,7 +47,7 @@ LookupReply::LookupReply(const std::string& str) {
     size_t space_pos = input.find(FIELD_SEPARATOR);
     if (space_pos != LookupReply::prefix.length())
         throw RadioException("Invalid format");
-    if (input.substr(0, space_pos) != LookupReply::prefix) 
+    if (input.substr(0, space_pos) != LookupReply::prefix)
         throw RadioException("Invalid prefix");
     input = input.substr(space_pos + 1);
 
@@ -84,10 +80,10 @@ LookupReply::LookupReply(const std::string& mcast_addr, const in_port_t data_por
     : mcast_addr(mcast_addr), data_port(data_port), name(name) {}
 
 std::string LookupReply::to_str() const {
-    return 
-        LookupReply::prefix + FIELD_SEPARATOR + 
-        mcast_addr + FIELD_SEPARATOR + 
-        std::to_string(data_port) + FIELD_SEPARATOR + 
+    return
+        LookupReply::prefix + FIELD_SEPARATOR +
+        mcast_addr + FIELD_SEPARATOR +
+        std::to_string(data_port) + FIELD_SEPARATOR +
         name + '\n';
 }
 
@@ -126,13 +122,14 @@ RexmitRequest::RexmitRequest(RexmitRequest&& other)
 
 RexmitRequest::RexmitRequest(const sockaddr_in& receiver_addr, const std::vector<uint64_t>& packet_ids)
     : receiver_addr(receiver_addr)
-    , packet_ids(packet_ids) 
+    , packet_ids(packet_ids)
     {}
 
 std::string RexmitRequest::to_str() const {
     std::ostringstream oss;
     // prefix
     oss << RexmitRequest::prefix << FIELD_SEPARATOR;
+
     // packet_ids
     if (!packet_ids.empty()) {
         oss << packet_ids.front();

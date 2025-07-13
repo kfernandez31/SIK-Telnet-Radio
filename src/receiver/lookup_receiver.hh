@@ -23,15 +23,15 @@ private:
 public:
     LookupReceiverWorker() = delete;
     LookupReceiverWorker(
-        const volatile sig_atomic_t& running, 
+        const volatile sig_atomic_t& running,
         const SyncedPtr<StationSet>& stations,
         const SyncedPtr<StationSet::iterator>& current_station,
-        const SyncedPtr<EventQueue>& my_event,  
+        const SyncedPtr<EventQueue>& my_event,
         const SyncedPtr<EventQueue>& audio_receiver_event,
         const SyncedPtr<EventQueue>& ui_menu_event,
         const std::shared_ptr<UdpSocket>& ctrl_socket,
         const std::optional<std::string> prio_station_name
     );
-    
+
     void run() override;
 };

@@ -7,7 +7,7 @@ The task was to write an audio streaming service, a "radio". The service consist
 
 My solution is intensely multi-threaded, on both the transmitter and the receiver ends. In order to handle multiple TCP/Telnet connections, the receiver uses `poll`. In order for threads to communicate with each other, they do so through pipes. Additionally, the solution has complete signal handling and a proper cleanup (graceful shutdown).
 
-# Full description 
+# Full description
 The task was divided into two iterations. The iterations' descriptions are available in Polish here:
 - [part 1](https://github.com/kfernandez31/SIK-Telnet-Radio/blob/main/task_description_pt1.md)
 - [part 2](https://github.com/kfernandez31/SIK-Telnet-Radio/blob/main/task_description_pt2.md)

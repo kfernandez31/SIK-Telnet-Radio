@@ -25,7 +25,7 @@ private:
 public:
     RetransmitterWorker() = delete;
     RetransmitterWorker(
-        const volatile sig_atomic_t& running, 
+        const volatile sig_atomic_t& running,
         const SyncedPtr<CircularBuffer>& packet_cache,
         const SyncedPtr<std::queue<RexmitRequest>>& job_queue,
         const SyncedPtr<EventQueue>& my_event,

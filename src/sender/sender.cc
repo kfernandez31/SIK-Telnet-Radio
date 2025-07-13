@@ -31,7 +31,7 @@ static void signal_handler(int signum) {
 
 int main(int argc, char* argv[]) {
     logger_init();
-    
+
     struct sigaction sa;
     sa.sa_handler = signal_handler;
     sigemptyset(&sa.sa_mask);
@@ -50,29 +50,29 @@ int main(int argc, char* argv[]) {
     auto packet_cache     = SyncedPtr<CircularBuffer>::make(params.fsize);
     packet_cache->reset(params.psize);
     auto rexmit_job_queue = SyncedPtr<std::queue<RexmitRequest>>::make();
-    
+
     std::shared_ptr<Worker> workers[NUM_WORKERS];
     std::thread worker_threads[NUM_WORKERS];
 
     workers[RETRANSMITTER] = std::make_shared<RetransmitterWorker>(
-        running, packet_cache, rexmit_job_queue, 
+        running, packet_cache, rexmit_job_queue,
         event_queues[RETRANSMITTER], params.session_id, params.rtime
     );
     workers[CONTROLLER] = std::make_shared<ControllerWorker>(
-        running, event_queues[CONTROLLER], 
-        event_queues[RETRANSMITTER], rexmit_job_queue, 
+        running, event_queues[CONTROLLER],
+        event_queues[RETRANSMITTER], rexmit_job_queue,
         params.mcast_addr, params.data_port, params.name,
         params.ctrl_port
     );
     workers[AUDIO_SENDER] = std::make_shared<AudioSenderWorker>(
-        running, mcast_addr, packet_cache, 
-        event_queues[AUDIO_SENDER], params.psize, 
+        running, mcast_addr, packet_cache,
+        event_queues[AUDIO_SENDER], params.psize,
         params.session_id
     );
 
     for (int i = 0; i < NUM_WORKERS; ++i)
         worker_threads[i] = std::thread([w = workers[i]] { w->run(); });
-    
+
     worker_threads[AUDIO_SENDER].join();
     // when the sender terminiates, the remaining workers should too
     raise(SIGINT);

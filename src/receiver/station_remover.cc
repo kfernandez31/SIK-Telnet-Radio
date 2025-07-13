@@ -11,16 +11,16 @@ static const milliseconds REMOVAL_FREQUENCY(500);
 using namespace std::chrono;
 
 StationRemoverWorker::StationRemoverWorker(
-    const volatile sig_atomic_t& running, 
+    const volatile sig_atomic_t& running,
     const SyncedPtr<StationSet>& stations,
     const SyncedPtr<StationSet::iterator>& current_station,
     const SyncedPtr<EventQueue>& audio_receiver_event,
     const SyncedPtr<EventQueue>& ui_menu_event,
     const std::optional<std::string> prio_station_name
-) 
+)
     : Worker(running, "StationRemover")
     , _stations(stations)
-    , _current_station(current_station) 
+    , _current_station(current_station)
     , _audio_receiver_event(audio_receiver_event)
     , _ui_menu_event(ui_menu_event)
     , _prio_station_name(prio_station_name)
@@ -39,7 +39,7 @@ void StationRemoverWorker::remove_inactive() {
             removed_current |= (it == *_current_station);
             log_info("[%s] removing %s station: %s", name.c_str(), (it == *_current_station)? "(current)" : "", it->name.c_str());
             it = _stations->erase(it);
-        } 
+        }
     }
     if (removed_any) {
         auto lock = _ui_menu_event.lock();

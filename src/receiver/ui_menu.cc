@@ -17,7 +17,7 @@ static const char* HORIZONTAL_BAR        = "------------------------------------
 static const char* PROGRAM_NAME          = "SIK Radio";
 static const char* CHOSEN_STATION_PREFIX = " > ";
 
-static const milliseconds REFRESH_TIMEOUT = milliseconds(1000 / REFRESH_RATE); 
+static const milliseconds REFRESH_TIMEOUT = milliseconds(1000 / REFRESH_RATE);
 
 UiMenuWorker::UiMenuWorker(
     const volatile sig_atomic_t& running,
@@ -27,7 +27,7 @@ UiMenuWorker::UiMenuWorker(
     const SyncedPtr<EventQueue>& audio_receiver_event,
     const in_port_t ui_port
 )
-    : Worker(running, "UiMenu") 
+    : Worker(running, "UiMenu")
     , _stations(stations)
     , _current_station(current_station)
     , _my_event(my_event)
@@ -43,16 +43,16 @@ UiMenuWorker::UiMenuWorker(
         _poll_fds[i].events  = POLLIN | POLLOUT | POLLERR;
         _poll_fds[i].revents = 0;
     }
-    _poll_fds[MY_EVENT].fd = _my_event->in_fd(); 
-    _poll_fds[SERVER].fd   = _server_socket.fd(); 
+    _poll_fds[MY_EVENT].fd = _my_event->in_fd();
+    _poll_fds[SERVER].fd   = _server_socket.fd();
 }
 
 void UiMenuWorker::config_client(const client_id_t id) {
     using namespace ui::telnet;
     std::ostringstream oss;
     oss
-        << commands::IAC << commands::WILL << options::ECHO 
-        << commands::IAC << commands::DO   << options::ECHO 
+        << commands::IAC << commands::WILL << options::ECHO
+        << commands::IAC << commands::DO   << options::ECHO
         << commands::IAC << commands::DO   << options::LINEMODE;
     _clients[id].socket.write(oss.str());
 }
@@ -152,8 +152,8 @@ void UiMenuWorker::run() {
     log_info("[%s] listening on port %d", name.c_str(), _server_socket.port());
     _server_socket.listen();
     steady_clock::time_point last_sleep = steady_clock::now();
-    while (running) {        
-        if (-1 == poll(_poll_fds.get(), TOTAL_POLLFDS, -1))
+    while (running) {
+        if (poll(_poll_fds.get(), TOTAL_POLLFDS, -1)) == -1)
             fatal("poll");
 
         if (_poll_fds[MY_EVENT].revents & POLLIN) {
@@ -192,7 +192,7 @@ void UiMenuWorker::run() {
                 if (_poll_fds[id].revents & POLLOUT)
                     send_msg(id, menu_to_str());
 
-                _poll_fds[id].revents = 0;     
+                _poll_fds[id].revents = 0;
             }
         }
     }
@@ -200,7 +200,7 @@ void UiMenuWorker::run() {
 }
 
 void UiMenuWorker::reset_client_input(const client_id_t id) {
-    memset(_clients[id].cmd_buf, 0, sizeof(_clients[id].cmd_buf)); 
+    memset(_clients[id].cmd_buf, 0, sizeof(_clients[id].cmd_buf));
     _clients[id].nread = 0;
 }
 
@@ -219,8 +219,8 @@ std::string UiMenuWorker::menu_to_str() {
         << HORIZONTAL_BAR << ui::telnet::newline;
     for (auto it = _stations->begin(); it != _stations->end(); ++it) {
         if (it == *_current_station)
-            ss << BLINK(GREEN(CHOSEN_STATION_PREFIX)) << BOLD(it->name); 
-        else 
+            ss << BLINK(GREEN(CHOSEN_STATION_PREFIX)) << BOLD(it->name);
+        else
             ss << it->name;
         ss << ui::telnet::newline;
     }

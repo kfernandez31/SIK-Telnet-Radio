@@ -14,7 +14,7 @@
 #define NUM_POLLFDS 2
 
 AudioReceiverWorker::AudioReceiverWorker(
-    const volatile sig_atomic_t& running, 
+    const volatile sig_atomic_t& running,
     const SyncedPtr<CircularBuffer>& buffer,
     const SyncedPtr<StationSet>& stations,
     const SyncedPtr<StationSet::iterator>& current_station,
@@ -72,7 +72,7 @@ void AudioReceiverWorker::handle_audio_packet(const AudioPacket& packet, bool& h
         log_info("[%s] packet %zu arrived too late, ignoring...", name.c_str(), packet.first_byte_num);
         return;
     }
-    
+
     auto lock = _buffer.lock();
     _buffer->try_put(std::move(packet));
     if (has_printed || packet.first_byte_num + _buffer->psize() - 1 >= _buffer->printing_threshold()) {
@@ -94,7 +94,7 @@ void AudioReceiverWorker::run() {
     }
 
     while (running) {
-        if (-1 == poll(poll_fds, NUM_POLLFDS, -1))
+        if (poll(poll_fds, NUM_POLLFDS, -1)) == -1)
             fatal("poll");
 
         if (poll_fds[MY_EVENT].revents & POLLIN) {

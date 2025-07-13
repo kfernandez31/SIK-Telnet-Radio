@@ -1,12 +1,11 @@
 CXX := g++
-CXXFLAGS := -std=c++20 -Wall -Wextra -O2 
+CXXFLAGS := -std=c++20 -Wall -Wextra -O2
 LDFLAGS = -lboost_program_options -pthread
 INCLUDES = -I/usr/include/boost
 
 # Source files
 RECEIVER_SRCS := \
     src/common/log.cc \
-    src/common/except.cc \
     src/common/net.cc \
     src/common/udp_socket.cc \
     src/common/tcp_socket.cc \
@@ -25,7 +24,6 @@ RECEIVER_SRCS := \
 
 SENDER_SRCS := \
     src/common/log.cc \
-    src/common/except.cc \
     src/common/net.cc \
     src/common/udp_socket.cc \
     src/common/radio_station.cc \
